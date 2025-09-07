@@ -1,0 +1,34 @@
+// This file initializes and exports Firebase services for the application.
+
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+
+/**
+ * Firebase configuration object.
+ * These values are typically obtained from your Firebase project settings.
+ */
+const firebaseConfig = {
+    apiKey: "AIzaSyA99On_n6-sp23bn7Nzd4Vv4FpQt47HnY4",
+  authDomain: "gmat-focus.firebaseapp.com",
+  projectId: "gmat-focus",
+  storageBucket: "gmat-focus.firebasestorage.app",
+  messagingSenderId: "251120900436",
+  appId: "1:251120900436:web:e9e8efb5255c52a85810c1",
+  measurementId: "G-H1280NBNJF"
+};
+
+// Initialize Firebase application
+const app = initializeApp(firebaseConfig);
+
+// Get Firebase Authentication instance
+const auth = getAuth(app);
+
+// Get Firebase Firestore instance
+const db = getFirestore(app);
+
+// Define an application ID, useful for multi-tenant Firestore structures
+const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'gmat-focus-app';
+
+// Export the initialized services and config for use throughout the application
+export { auth, db, appId, firebaseConfig };
