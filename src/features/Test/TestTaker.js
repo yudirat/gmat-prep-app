@@ -1,14 +1,17 @@
-// This component manages the test-taking experience for various GMAT sections.
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from '../../components/Modal';
 import MathText from '../../components/MathText';
 import ContentRenderer from '../../components/ContentRenderer';
+import { useDataFromContext as useData } from '../../contexts/DataContext';
+import { useUser } from '../../contexts/UserContext';
 
 /**
  * Component for taking a test section (Quant, Verbal, Data Insights).
  * Manages question presentation, answer handling, scoring, and test flow.
  */
-export default function TestTaker({ user, questions, passages, msrSets, graphicStimuli, tableStimuli, onTestComplete, testType, userProfile }) {
+export default function TestTaker({ onTestComplete, testType }) {
+    const { user, userProfile } = useUser();
+    const { questions, passages, msrSets, graphicStimuli, tableStimuli, isLoading } = useData();
     // State for test progression and data
     const [currentDifficulty, setCurrentDifficulty] = useState(3);
     const [answers, setAnswers] = useState([]);
@@ -65,7 +68,7 @@ export default function TestTaker({ user, questions, passages, msrSets, graphicS
 
     // Effect to generate the test plan based on test type and unseen questions
     useEffect(() => {
-        if (!isTestStarted) return;
+        if (!isTestStarted || isLoading) return;
         
         const seenIds = userProfile?.seenQuestionIds || [];
         const unseenQuestions = questions.filter(q => !seenIds.includes(q.id));
@@ -99,7 +102,7 @@ export default function TestTaker({ user, questions, passages, msrSets, graphicS
             if(item.itemType !== 'single') item.difficulty = item.questions.reduce((acc, q) => acc + q.difficulty, 0) / item.questions.length;
         });
         setTestPlan(availableItems);
-    }, [isTestStarted, questions, passages, msrSets, graphicStimuli, tableStimuli, testType, userProfile]);
+    }, [isTestStarted, questions, passages, msrSets, graphicStimuli, tableStimuli, testType, userProfile, isLoading]);
 
     /**
      * Selects the next item (question or stimulus set) from the test plan.
@@ -230,7 +233,7 @@ export default function TestTaker({ user, questions, passages, msrSets, graphicS
 
     // Render start modal or loading screen if test not ready
     if (showStartModal) return <Modal isOpen={true} onClose={() => {}} title={`Prepare for ${testType} Test`}><p className="text-gray-700 mb-6">You will have 45 minutes to complete this section. The test is adaptive. Good luck!</p><button onClick={startTest} className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">Start Test</button></Modal>;
-    if (!currentItem) return <div className="text-center p-8"><h2 className="text-2xl font-semibold">Loading Test...</h2><p>{testPlan.length > 0 ? "Getting your first question ready." : `There are no ${testType} questions yet.`}</p></div>;
+    if (!currentItem || isLoading) return <div className="text-center p-8"><h2 className="text-2xl font-semibold">Loading Test...</h2><p>{testPlan.length > 0 ? "Getting your first question ready." : `There are no ${testType} questions yet.`}</p></div>;
 
     const { itemType } = currentItem;
     const currentQuestion = itemType === 'single' ? currentItem : currentItem.questions[questionWithinItemIndex];
@@ -449,7 +452,7 @@ export default function TestTaker({ user, questions, passages, msrSets, graphicS
                 <div className="text-lg font-mono bg-gray-200 px-3 py-1 rounded">{Math.floor(timeLeft / 60)}:{('0' + timeLeft % 60).slice(-2)}</div>
                 <div className="text-lg">Question {answers.length + 1} / 21</div>
             </div>
-            {/* Main content area, split into stimulus and question body */}
+            {/* Main content area, aplit into stimulus and question body */}
             <div className={`grid gap-6 ${itemType !== 'single' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
                 {renderStimulus()}
                 <div className="bg-white p-8 rounded-lg shadow-lg">{renderQuestionBody()}</div>

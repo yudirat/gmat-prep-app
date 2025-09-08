@@ -1,16 +1,17 @@
-// This component serves as a container for the different question creators.
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, appId } from '../../firebase';
 import QuantMCQCreator from './QuantMCQCreator';
 import VerbalPassageCreator from './VerbalPassageCreator';
 import DataInsightsCreator from './DataInsightsCreator';
+import { useDataFromContext as useData } from '../../contexts/DataContext';
 
 /**
  * Component that serves as a container for the different question creators.
  * It renders the appropriate creator based on the selected content type.
  */
-export default function TestCreator({ user, editingQuestionId, setEditingQuestionId, setView, questions }) {
+export default function TestCreator({ user, editingQuestionId, setEditingQuestionId, setView }) {
+    const { questions, isLoading: isDataLoading } = useData();
     // State for the content type, question data, and loading status
     const [contentType, setContentType] = useState('Quant');
     const [questionData, setQuestionData] = useState(null);
@@ -51,7 +52,7 @@ export default function TestCreator({ user, editingQuestionId, setEditingQuestio
      * Renders the appropriate creator component based on the content type.
      */
     const renderCreator = () => {
-        if (isLoading) {
+        if (isLoading || isDataLoading) {
             return <div>Loading question data...</div>;
         }
 

@@ -1,13 +1,16 @@
-// This component displays a user's past test results.
 import React, { useState, useEffect } from 'react';
 import { onSnapshot, collection, query } from 'firebase/firestore';
 import { db, appId } from '../../firebase';
+import { useUser } from '../../contexts/UserContext';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * Component to display a user's past test results.
  * It fetches the test history from Firestore and displays it in a list.
  */
-export default function PastResults({ user, onViewResult }) {
+export default function PastResults() {
+    const { user } = useUser();
+    const navigate = useNavigate();
     // State to store the test history and loading status
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,7 +28,11 @@ export default function PastResults({ user, onViewResult }) {
         return () => unsubscribe();
     }, [user]);
 
-    if (loading) return <div>Loading past results...</div>;
+    const onViewResult = (result) => {
+        navigate('/results', { state: { results: result } });
+    };
+
+    if (loading || !user) return <div>Loading past results...</div>;
 
     return (
         <div className="bg-white p-8 rounded-lg shadow-lg">

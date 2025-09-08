@@ -1,5 +1,5 @@
-// This component provides the user login interface.
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase';
 
@@ -68,6 +68,12 @@ export default function LoginScreen() {
                         </button>
                     </div>
                 </form>
+                <p className="text-sm text-center text-gray-600">
+                    Don't have an account?{" "}
+                    <Link to="/signup" className="font-medium text-indigo-600 hover:underline">
+                        Sign up
+                    </Link>
+                </p>
             </div>
         </div>
     );

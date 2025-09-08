@@ -1,12 +1,14 @@
-// This component provides a dashboard for content creators, displaying statistics and actions.
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useDataFromContext as useData } from '../../contexts/DataContext';
 
 /**
  * CreatorDashboard component displays an overview for content creators.
  * It shows statistics about questions by section and category, and provides navigation to content creation and management.
  */
-export default function CreatorDashboard({ questions, setView }) {
+export default function CreatorDashboard({ setView }) {
+    const { questions, isLoading } = useData();
+
     // Prepare data for the Pie Chart: number of questions per section
     const sectionData = [
         { name: 'Quant', value: questions.filter(q => q.type === 'Quant').length, color: '#4f46e5' },
@@ -21,6 +23,10 @@ export default function CreatorDashboard({ questions, setView }) {
         name: cat,
         count: questions.filter(q => q.type === 'Quant' && q.categories?.includes(cat)).length
     }));
+
+    if (isLoading) {
+        return <div>Loading dashboard...</div>;
+    }
 
     return (
         <div className="bg-white p-8 rounded-lg shadow-lg">

@@ -1,45 +1,39 @@
-// This component serves as the main dashboard for students, displaying their performance and test history.
 import React, { useState, useEffect } from 'react';
-import { onSnapshot, collection, query, doc } from 'firebase/firestore';
+import { onSnapshot, collection, query } from 'firebase/firestore';
 import { db, appId } from '../../firebase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useUser } from '../../contexts/UserContext';
+import { useDataFromContext as useData } from '../../contexts/DataContext';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * StudentDashboard component displays a student's overall performance, test history, and test attempt limits.
  */
-export default function StudentDashboard({ user, userProfile, setView, onViewResult }) {
-    // State for test history, loading status, and test limits
+export default function StudentDashboard({ userProfile }) {
+    const { user } = useUser();
+    const { appSettings, isLoading } = useData();
     const [testHistory, setTestHistory] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [testLimits, setTestLimits] = useState(null);
+    const [loadingHistory, setLoadingHistory] = useState(true);
+    const navigate = useNavigate();
 
     // Effect to fetch the user's test history from Firestore
     useEffect(() => {
+        if (!user) return;
         const historyRef = collection(db, `artifacts/${appId}/users/${user.uid}/testHistory`);
         const q = query(historyRef);
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const historyData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setTestHistory(historyData);
-            setLoading(false);
+            setLoadingHistory(false);
         });
         return () => unsubscribe();
-    }, [user.uid]);
+    }, [user]);
 
-    // Effect to fetch the global test limits from Firestore
-    useEffect(() => {
-        const limitsRef = doc(db, `artifacts/${appId}/public/data/appSettings`, 'testLimits');
-        const unsubscribe = onSnapshot(limitsRef, (docSnap) => {
-            if (docSnap.exists()) {
-                setTestLimits(docSnap.data());
-            } else {
-                // Default limits if none are set in the database
-                setTestLimits({ quantLimit: 5, verbalLimit: 5, diLimit: 5, mockLimit: 3 });
-            }
-        });
-        return () => unsubscribe();
-    }, []);
+    const onViewResult = (result) => {
+        navigate('/results', { state: { results: result } });
+    };
 
-    if (loading || !testLimits) {
+    if (isLoading || loadingHistory || !userProfile || !appSettings) {
         return <div>Loading dashboard...</div>;
     }
 
@@ -78,10 +72,38 @@ export default function StudentDashboard({ user, userProfile, setView, onViewRes
 
     // User's test attempts from their profile
     const attempts = userProfile.testAttempts || {};
+    const testLimits = appSettings.testLimits || {};
+
+    const isNewStudent = testHistory.length === 0 && Object.values(userProfile.testAttempts || {}).every(attempts => attempts === 0);
+
+    if (isNewStudent) {
+        return (
+            <div className="text-center p-8 bg-white rounded-lg shadow-lg">
+                <h1 className="text-4xl font-bold text-gray-800 mb-4">Welcome to GMAT Focus Prep!</h1>
+                <p className="text-lg text-gray-600 mb-8">It looks like you're new here. Let's get you started on your GMAT journey.</p>
+                <div className="space-y-4 max-w-md mx-auto">
+                    <button onClick={() => navigate('/practice')} className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 text-lg">
+                        Start Practicing Questions
+                    </button>
+                    <button onClick={() => navigate('/')} className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 text-lg">
+                        Take a Full Mock Test
+                    </button>
+                    <button onClick={() => navigate('/past-results')} className="w-full bg-gray-600 text-white py-3 px-4 rounded-md hover:bg-gray-700 text-lg">
+                        Review Past Results (Once you have some!)
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
-            <h1 className="text-3xl font-bold text-gray-800">My Dashboard</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-bold text-gray-800">My Dashboard</h1>
+                <button onClick={() => navigate('/profile')} className="text-indigo-600 hover:text-indigo-800">
+                    My Profile
+                </button>
+            </div>
 
             {/* Performance Snapshot Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

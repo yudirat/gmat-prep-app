@@ -1,5 +1,5 @@
-// This component displays the results of a completed test.
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar } from 'recharts';
 import MathText from '../../components/MathText';
 
@@ -7,7 +7,11 @@ import MathText from '../../components/MathText';
  * Component to display the results of a completed test.
  * It shows the score, time taken, accuracy, performance by difficulty, and a detailed question review.
  */
-export default function ResultsScreen({ results, onRestart }) {
+export default function ResultsScreen() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { results } = location.state || {};
+
     if (!results) return <div>Loading results...</div>;
     const { answers, score, timeTaken, testType } = results;
     const correctCount = answers.filter(a => a.isCorrect).length;
@@ -153,7 +157,7 @@ export default function ResultsScreen({ results, onRestart }) {
             </div>
             {/* Back to Home button */}
             <div className="text-center mt-8">
-                <button onClick={onRestart} className="bg-indigo-600 text-white py-2 px-6 rounded-md hover:bg-indigo-700 transition-colors">Back to Home</button>
+                <button onClick={() => navigate('/dashboard')} className="bg-indigo-600 text-white py-2 px-6 rounded-md hover:bg-indigo-700 transition-colors">Back to Dashboard</button>
             </div>
         </div>
     );

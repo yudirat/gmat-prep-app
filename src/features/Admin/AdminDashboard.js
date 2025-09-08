@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { onSnapshot, collection, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
+import React, { useState, useMemo, useEffect } from 'react';
+import { onSnapshot, collection, doc, updateDoc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db, appId, firebaseConfig } from '../../firebase';
+import RolesManager from './RolesManager';
+import { useDataFromContext as useData } from '../../contexts/DataContext';
 
-export default function AdminDashboard({ appSettings }) {
+export default function AdminDashboard() {
+    const { roles, appSettings, isLoading } = useData();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [newUserUid, setNewUserUid] = useState('');
-    const [newUserRole, setNewUserRole] = useState('Student');
+    const [newUserRole, setNewUserRole] = useState('');
     const [message, setMessage] = useState('');
     const [testLimits, setTestLimits] = useState({
         quantLimit: 5,
@@ -14,16 +17,8 @@ export default function AdminDashboard({ appSettings }) {
         diLimit: 5,
         mockLimit: 3
     });
-
-    useEffect(() => {
-        const limitsRef = doc(db, `artifacts/${appId}/public/data/appSettings`, 'testLimits');
-        const unsubscribe = onSnapshot(limitsRef, (docSnap) => {
-            if (docSnap.exists()) {
-                setTestLimits(docSnap.data());
-            }
-        });
-        return () => unsubscribe();
-    }, []);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'displayName', direction: 'ascending' });
 
     useEffect(() => {
         const usersRef = collection(db, `artifacts/${appId}/users`);
@@ -37,6 +32,15 @@ export default function AdminDashboard({ appSettings }) {
     const handleRoleChange = async (uid, newRole) => {
         const userRef = doc(db, `artifacts/${appId}/users`, uid);
         try { await updateDoc(userRef, { role: newRole }); } catch (error) { console.error("Error updating role: ", error); }
+    };
+
+    const handleDeleteUser = async (uid) => {
+        const userRef = doc(db, `artifacts/${appId}/users`, uid);
+        try {
+            await deleteDoc(userRef);
+        } catch (error) {
+            console.error("Error deleting user: ", error);
+        }
     };
     
     const handleAssignRole = async (e) => {
@@ -98,10 +102,42 @@ export default function AdminDashboard({ appSettings }) {
         }
     };
 
-    if (loading) return <div>Loading users...</div>;
+    const sortedUsers = useMemo(() => {
+        let sortableUsers = [...users];
+        if (sortConfig !== null) {
+            sortableUsers.sort((a, b) => {
+                if (a[sortConfig.key] < b[sortConfig.key]) {
+                    return sortConfig.direction === 'ascending' ? -1 : 1;
+                }
+                if (a[sortConfig.key] > b[sortConfig.key]) {
+                    return sortConfig.direction === 'ascending' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableUsers;
+    }, [users, sortConfig]);
+
+    const filteredUsers = useMemo(() => {
+        return sortedUsers.filter(user =>
+            (user.displayName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (user.email?.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+    }, [sortedUsers, searchTerm]);
+
+    const requestSort = (key) => {
+        let direction = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    if (isLoading) return <div>Loading users...</div>;
 
     return (
         <div className="bg-white p-8 rounded-lg shadow-lg space-y-12">
+            <RolesManager />
              <div>
                 <h2 className="text-3xl font-bold text-gray-800 mb-6">Feature Management</h2>
                 <div className="space-y-4">
@@ -168,9 +204,9 @@ export default function AdminDashboard({ appSettings }) {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Role</label>
                                 <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                    <option>Student</option>
-                                    <option>Educator</option>
-                                    <option>Admin</option>
+                                    {roles.map(role => (
+                                        <option key={role.id} value={role.id}>{role.name}</option>
+                                    ))}
                                 </select>
                             </div>
                             <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-md">Create Profile</button>
@@ -181,28 +217,38 @@ export default function AdminDashboard({ appSettings }) {
             </div>
             <div>
                 <h2 className="text-3xl font-bold text-gray-800 mb-6">Manage Existing Users</h2>
+                <div className="mb-4">
+                    <input
+                        type="text"
+                        placeholder="Search by name or email"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="border rounded-md p-2 w-full"
+                    />
+                </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full bg-white">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="text-left py-3 px-4 uppercase font-semibold text-sm">Display Name</th>
-                                <th className="text-left py-3 px-4 uppercase font-semibold text-sm">UID</th>
-                                <th className="text-left py-3 px-4 uppercase font-semibold text-sm">Role</th>
+                                <th className="text-left py-3 px-4 uppercase font-semibold text-sm cursor-pointer" onClick={() => requestSort('displayName')}>Display Name</th>
+                                <th className="text-left py-3 px-4 uppercase font-semibold text-sm cursor-pointer" onClick={() => requestSort('email')}>Email</th>
+                                <th className="text-left py-3 px-4 uppercase font-semibold text-sm cursor-pointer" onClick={() => requestSort('role')}>Role</th>
                                 <th className="text-left py-3 px-4 uppercase font-semibold text-sm">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {users.map(user => (
+                            {filteredUsers.map(user => (
                                 <tr key={user.id} className="border-b">
-                                    <td className="py-3 px-4">{user.displayName || user.email || '(Not set)'}</td>
-                                    <td className="py-3 px-4 text-sm font-mono">{user.uid}</td>
+                                    <td className="py-3 px-4">{user.displayName || '(Not set)'}</td>
+                                    <td className="py-3 px-4">{user.email}</td>
                                     <td className="py-3 px-4">{user.role}</td>
                                     <td className="py-3 px-4">
                                         <select value={user.role} onChange={(e) => handleRoleChange(user.uid, e.target.value)} className="p-2 border rounded-md">
-                                            <option value="Admin">Admin</option>
-                                            <option value="Educator">Educator</option>
-                                            <option value="Student">Student</option>
+                                            {roles.map(role => (
+                                                <option key={role.id} value={role.id}>{role.name}</option>
+                                            ))}
                                         </select>
+                                        <button onClick={() => handleDeleteUser(user.uid)} className="text-red-600 hover:text-red-800 ml-2">Delete</button>
                                     </td>
                                 </tr>
                             ))}

@@ -1,13 +1,16 @@
-// This component manages the flow of a full mock GMAT exam, presenting sections sequentially.
 import React, { useState } from 'react';
 import TestTaker from './TestTaker';
 import { calculateTotalScore } from '../../utils';
+import useData from '../../hooks/useData';
+import { useUser } from '../../contexts/UserContext';
 
 /**
  * Component to manage the flow of a full mock GMAT exam.
  * It presents each section (Quant, Verbal, Data Insights) sequentially and calculates the final score.
  */
-export default function MockGmatFlow({ user, questions, passages, msrSets, graphicStimuli, tableStimuli, onMockComplete }) {
+export default function MockGmatFlow({ onMockComplete }) {
+    const { user } = useUser();
+    const { questions, passages, msrSets, graphicStimuli, tableStimuli, isLoading } = useData();
     // State to track the current section and store results of completed sections
     const [currentSection, setCurrentSection] = useState(0);
     const [sectionResults, setSectionResults] = useState([]);
@@ -42,6 +45,10 @@ export default function MockGmatFlow({ user, questions, passages, msrSets, graph
         }
     };
     
+    if (isLoading) {
+        return <div>Loading questions...</div>;
+    }
+
     // Display a message while calculating the final score after all sections are done
     if (currentSection >= sections.length) {
         return <div>Calculating final score...</div>
@@ -52,12 +59,6 @@ export default function MockGmatFlow({ user, questions, passages, msrSets, graph
             {/* Render the TestTaker component for the current section */}
             <TestTaker 
                 key={sections[currentSection]} // Key ensures component remounts for each section
-                user={user} 
-                questions={questions}
-                passages={passages}
-                msrSets={msrSets}
-                graphicStimuli={graphicStimuli}
-                tableStimuli={tableStimuli}
                 onTestComplete={handleSectionComplete}
                 testType={sections[currentSection]}
             />

@@ -1,32 +1,15 @@
-// This component serves as the home screen of the application, providing navigation to different test and practice sections.
-import React, { useState, useEffect } from 'react';
-import { onSnapshot, doc } from 'firebase/firestore';
-import { db, appId } from '../../firebase';
+import React from 'react';
+import useData from '../../hooks/useData';
+import { useUser } from '../../contexts/UserContext';
 
 /**
  * HomeScreen component acts as the main landing page for the application.
  * It displays options to start different types of tests (mock, sectional) and navigate to the practice hub,
  * with buttons enabled/disabled based on available questions and user attempt limits.
  */
-export default function HomeScreen({ userRole, onStartTest, onStartPractice, onStartMock, appSettings, questions, userProfile }) {
-    // State for test limits and loading status
-    const [testLimits, setTestLimits] = useState(null);
-    const [loadingLimits, setLoadingLimits] = useState(true);
-
-    // Effect to fetch the test limits from Firestore
-    useEffect(() => {
-        const limitsRef = doc(db, `artifacts/${appId}/public/data/appSettings`, 'testLimits');
-        const unsubscribe = onSnapshot(limitsRef, (docSnap) => {
-            if (docSnap.exists()) {
-                setTestLimits(docSnap.data());
-            } else {
-                // Set default limits if none are found in the database
-                setTestLimits({ quantLimit: 5, verbalLimit: 5, diLimit: 5, mockLimit: 3 });
-            }
-            setLoadingLimits(false);
-        });
-        return () => unsubscribe();
-    }, []);
+export default function HomeScreen({ onStartTest, onStartPractice, onStartMock }) {
+    const { userProfile } = useUser();
+    const { appSettings, questions, isLoading } = useData();
 
     // --- Check for Test Readiness ---
     // Minimum number of unseen questions required to start a test section
@@ -50,6 +33,7 @@ export default function HomeScreen({ userRole, onStartTest, onStartPractice, onS
 
     // Check user's remaining attempt limits for each test type
     const attempts = userProfile?.testAttempts || {};
+    const testLimits = appSettings.testLimits || {};
     const quantAttemptsLeft = (testLimits?.quantLimit || 0) - (attempts.Quant || 0) > 0;
     const verbalAttemptsLeft = (testLimits?.verbalLimit || 0) - (attempts.Verbal || 0) > 0;
     const diAttemptsLeft = (testLimits?.diLimit || 0) - (attempts['Data Insights'] || 0) > 0;
@@ -76,14 +60,14 @@ export default function HomeScreen({ userRole, onStartTest, onStartPractice, onS
         return "Start the test";
     };
     
-    if (loadingLimits) {
+    if (isLoading) {
         return <div>Loading test settings...</div>;
     }
 
     return (
         <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-800 mb-2">Welcome to GMAT Focus Adaptive Prep</h1>
-            <p className="text-lg text-gray-600 mb-8">Your role is: <span className="font-semibold text-indigo-600">{userRole}</span></p>
+            <p className="text-lg text-gray-600 mb-8">Your role is: <span className="font-semibold text-indigo-600">{userProfile.role}</span></p>
             
             {/* Full Length Mock Exam Section */}
             {appSettings.isMockTestActive && (
