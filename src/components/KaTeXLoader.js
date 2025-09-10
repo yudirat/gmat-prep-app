@@ -1,5 +1,5 @@
 // This component dynamically loads the KaTeX CSS and JavaScript files.
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 /**
  * KaTeXLoader component dynamically loads the KaTeX CSS and JavaScript files into the document head.

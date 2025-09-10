@@ -2,15 +2,13 @@ import React, { useState } from 'react';
 import TestTaker from './TestTaker';
 import { calculateTotalScore } from '../../utils';
 import useData from '../../hooks/useData';
-import { useUser } from '../../contexts/UserContext';
 
 /**
  * Component to manage the flow of a full mock GMAT exam.
  * It presents each section (Quant, Verbal, Data Insights) sequentially and calculates the final score.
  */
 export default function MockGmatFlow({ onMockComplete }) {
-    const { user } = useUser();
-    const { questions, passages, msrSets, graphicStimuli, tableStimuli, isLoading } = useData();
+    const { isLoading } = useData();
     // State to track the current section and store results of completed sections
     const [currentSection, setCurrentSection] = useState(0);
     const [sectionResults, setSectionResults] = useState([]);

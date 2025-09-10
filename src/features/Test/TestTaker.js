@@ -10,7 +10,7 @@ import { useUser } from '../../contexts/UserContext';
  * Manages question presentation, answer handling, scoring, and test flow.
  */
 export default function TestTaker({ onTestComplete, testType }) {
-    const { user, userProfile } = useUser();
+    const { userProfile } = useUser();
     const { questions, passages, msrSets, graphicStimuli, tableStimuli, isLoading } = useData();
     // State for test progression and data
     const [currentDifficulty, setCurrentDifficulty] = useState(3);

@@ -5,6 +5,7 @@ import { db, appId } from '../../firebase';
 import QuestionSelectorModal from './QuestionSelectorModal';
 import QuestionPreviewModal from './QuestionPreviewModal';
 import BlockEditor from '../../components/BlockEditor';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Component for creating and editing Quantitative and Data Insights Multiple Choice Questions.
@@ -47,17 +48,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
         }
     }, [initialData]);
 
-    /**
-     * Resets the form to its initial state.
-     */
-    const resetForm = () => {
-        setQuestionText([{ type: 'text', value: '' }]);
-        setOptions([[{type: 'text', value: ''}], [{type: 'text', value: ''}]]);
-        setCorrectAnswer([]);
-        setDifficulty(3);
-        setQuantCategories([]);
-        setIsMultipleCorrect(false);
-    };
+    
 
     /**
      * Adds a new option to the question.
@@ -112,28 +103,53 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
     };
     
     /**
-     * Populates the form with the data of an existing question.
-     * @param {object} question - The question to copy.
+     * Handles the selection of questions from the selector modal and creates copies.
+     * @param {Array<object>} selectedQuestionsWithCopies - Array of selected questions with their copy counts.
      */
-    const handleQuestionSelect = (question) => {
-        // This helper function ensures content is always in the correct array format
-        const parseContent = (content) => {
-            if (typeof content === 'string') {
-                try { 
-                    return JSON.parse(content); 
-                } catch (e) { 
-                    return [{ type: 'text', value: content }]; 
+    const handleQuestionSelect = async (selectedQuestionsWithCopies) => {
+        setIsSubmitting(true);
+        setError('');
+        setSuccess('');
+
+        const questionsCollectionRef = collection(db, `artifacts/${appId}/public/data/questions`);
+        let successfulCopies = 0;
+        let failedCopies = 0;
+
+        for (const selectedItem of selectedQuestionsWithCopies) {
+            const originalQuestion = selectedItem; // The question object itself
+            const numberOfCopies = selectedItem.copies;
+
+            for (let i = 0; i < numberOfCopies; i++) {
+                try {
+                    // Create a new question object, copying data from the original
+                    const { id, ...restOfQuestion } = originalQuestion; // Destructure to exclude id
+                    const newQuestionData = {
+                        ...restOfQuestion, // Spread the rest of the original question data
+                        id: uuidv4(), // Generate a new unique ID for the copy
+                        creatorId: user.uid, // Assign current user as creator
+                        createdAt: new Date().toISOString(), // Add creation timestamp
+                        // questionText and options are already in the correct format (parsed JSON)
+                    };
+
+                    await addDoc(questionsCollectionRef, newQuestionData);
+                    successfulCopies++;
+                } catch (err) {
+                    console.error("Error copying question:", err);
+                    failedCopies++;
                 }
             }
-            return Array.isArray(content) ? content : [{ type: 'text', value: '' }];
-        };
-        
-        setQuantCategories(question.categories || []);
-        setQuestionText(parseContent(question.questionText)); // Parse the question text
-        setOptions((question.options || []).map(opt => parseContent(opt))); // Parse each option
-        setIsMultipleCorrect(question.isMultipleCorrect || false);
-        setCorrectAnswer(Array.isArray(question.correctAnswer) ? question.correctAnswer : [question.correctAnswer]);
-        setDifficulty(question.difficulty || 3);
+        }
+
+        setIsSubmitting(false);
+        if (successfulCopies > 0) {
+            setSuccess(`Successfully copied ${successfulCopies} question(s)!`);
+            // Optionally, you might want to refresh the question list in the parent component
+            // if onSave triggers a data refresh. If not, consider calling a refresh function here.
+            setTimeout(() => onSave(), 1000);
+        }
+        if (failedCopies > 0) {
+            setError(`Failed to copy ${failedCopies} question(s). Check console for details.`);
+        }
     };
 
     /**
@@ -145,6 +161,14 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
         setIsSubmitting(true);
         setError('');
         setSuccess('');
+
+        if (correctAnswer.length === 0) {
+            setError('Please select a correct answer.');
+            setIsSubmitting(false);
+            return;
+        }
+
+        console.log("User object in handleSubmit:", user);
 
         const questionData = {
             creatorId: user.uid,
@@ -199,7 +223,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
                     isOpen={isSelectorOpen}
                     onClose={() => setIsSelectorOpen(false)}
                     questions={allQuestions}
-                    onQuestionSelect={handleQuestionSelect}
+                    onCopySelected={handleQuestionSelect}
                 />
             )}
             {/* Modal for previewing the question */}

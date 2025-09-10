@@ -5,6 +5,7 @@ import App from './App'; // Import the main App component
 import reportWebVitals from './reportWebVitals'; // Import function for reporting web vitals
 import { UserProvider } from './contexts/UserContext';
 import { DataProvider } from './contexts/DataContext';
+import { BrowserRouter as Router } from 'react-router-dom';
 
 // Create a React root and link it to the 'root' element in index.html
 const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -14,7 +15,9 @@ root.render(
   <React.StrictMode>
     <UserProvider>
       <DataProvider>
-        <App />
+        <Router>
+          <App />
+        </Router>
       </DataProvider>
     </UserProvider>
   </React.StrictMode>

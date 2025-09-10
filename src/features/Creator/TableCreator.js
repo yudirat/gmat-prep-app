@@ -12,8 +12,8 @@ export default function TableCreator({ user, onSave, initialData, allTableStimul
     const [tableStimulus, setTableStimulus] = useState({ headers: [''], rows: [['']] });
     const [subQuestion, setSubQuestion] = useState({...defaultSubQuestion});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const [, setError] = useState('');
+    const [, setSuccess] = useState('');
 
     // Effect to populate the form when editing an existing table question
     useEffect(() => {
@@ -124,15 +124,7 @@ export default function TableCreator({ user, onSave, initialData, allTableStimul
         setIsSubmitting(false);
     };
     
-    /**
-     * Resets the form to its initial state.
-     */
-    const resetForm = () => {
-        setTableStimulus({ headers: [''], rows: [['']] });
-        setSubQuestion({...defaultSubQuestion});
-        setError('');
-        setSuccess('');
-    };
+    
 
     return (
         <form onSubmit={handleSubmit}>

@@ -1,13 +1,15 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useDataFromContext as useData } from '../../contexts/DataContext';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * CreatorDashboard component displays an overview for content creators.
  * It shows statistics about questions by section and category, and provides navigation to content creation and management.
  */
-export default function CreatorDashboard({ setView }) {
+export default function CreatorDashboard() {
     const { questions, isLoading } = useData();
+    const navigate = useNavigate();
 
     // Prepare data for the Pie Chart: number of questions per section
     const sectionData = [
@@ -34,10 +36,10 @@ export default function CreatorDashboard({ setView }) {
                 <h2 className="text-3xl font-bold text-gray-800">Creator Dashboard</h2>
                 {/* Action buttons for content creation and management */}
                 <div className="space-x-4">
-                    <button onClick={() => setView('createForm')} className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
+                    <button onClick={() => navigate('/create-form')} className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
                         + Add New Content
                     </button>
-                    <button onClick={() => setView('questionBank')} className="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700">
+                    <button onClick={() => navigate('/question-bank')} className="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700">
                         Manage Question Bank
                     </button>
                     <button onClick={() => alert('Mock Test Creator coming soon!')} className="bg-teal-600 text-white py-2 px-4 rounded-md hover:bg-teal-700">

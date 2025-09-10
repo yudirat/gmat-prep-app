@@ -33,46 +33,62 @@ export default function StudentDashboard({ userProfile }) {
         navigate('/results', { state: { results: result } });
     };
 
-    if (isLoading || loadingHistory || !userProfile || !appSettings) {
-        return <div>Loading dashboard...</div>;
-    }
+    const testLimits = appSettings?.testLimits || {};
+    const attempts = userProfile?.testAttempts || {};
 
-    // --- Calculate Performance Statistics ---
-    // Total questions answered across all tests
-    const totalQuestions = testHistory.reduce((acc, result) => acc + (result.answers?.length || 0), 0);
-    // Total correct answers across all tests
-    const totalCorrect = testHistory.reduce((acc, result) => acc + (result.answers?.filter(a => a.isCorrect).length || 0), 0);
-    // Overall accuracy percentage
-    const overallAccuracy = totalQuestions > 0 ? ((totalCorrect / totalQuestions) * 100).toFixed(1) : "N/A";
+    // Process test history to calculate dashboard metrics
+    const sectionPerformances = [];
+    let totalQuestions = 0;
+    let totalCorrect = 0;
 
-    // Group scores by section type
-    const sectionScores = { Quant: [], Verbal: [], 'Data Insights': [] };
     testHistory.forEach(result => {
-        if (sectionScores[result.testType]) {
-            sectionScores[result.testType].push(result.score);
+        // For single-section tests, which are identified by their testType
+        if (result.testType === 'Quantitative' || result.testType === 'Verbal' || result.testType === 'Data Insights') {
+            sectionPerformances.push({
+                name: result.testType,
+                score: result.score,
+            });
+            totalQuestions += result.totalQuestions || 0;
+            totalCorrect += result.totalCorrect || 0;
+        } 
+        // For Full Mock Exams, which contain multiple sections
+        else if (result.testType === 'Full Mock Exam' && result.sections) {
+            result.sections.forEach(section => {
+                sectionPerformances.push({
+                    name: section.name,
+                    score: section.score,
+                });
+                totalQuestions += section.totalQuestions || 0;
+                totalCorrect += section.correctCount || 0; // Note: field might be correctCount here
+            });
         }
     });
 
-    // Calculate average scores for each section
-    const averageScores = {
-        Quant: sectionScores.Quant.length > 0 ? (sectionScores.Quant.reduce((a, b) => a + b, 0) / sectionScores.Quant.length).toFixed(1) : "N/A",
-        Verbal: sectionScores.Verbal.length > 0 ? (sectionScores.Verbal.reduce((a, b) => a + b, 0) / sectionScores.Verbal.length).toFixed(1) : "N/A",
-        'Data Insights': sectionScores['Data Insights'].length > 0 ? (sectionScores['Data Insights'].reduce((a, b) => a + b, 0) / sectionScores['Data Insights'].length).toFixed(1) : "N/A",
-    };
-    
-    // Calculate overall average score across all tests
-    const overallAverage = testHistory.length > 0 ? (testHistory.reduce((acc, result) => acc + result.score, 0) / testHistory.length).toFixed(1) : "N/A";
+    const overallAverage = sectionPerformances.length > 0
+        ? Math.round(sectionPerformances.reduce((acc, curr) => acc + curr.score, 0) / sectionPerformances.length)
+        : 0;
 
-    // Data for the average score by section chart
-    const chartData = [
-        { name: 'Quant', avgScore: averageScores.Quant },
-        { name: 'Verbal', avgScore: averageScores.Verbal },
-        { name: 'Data Insights', avgScore: averageScores['Data Insights'] },
-    ];
+    const overallAccuracy = totalQuestions > 0
+        ? Math.round((totalCorrect / totalQuestions) * 100)
+        : 0;
 
-    // User's test attempts from their profile
-    const attempts = userProfile.testAttempts || {};
-    const testLimits = appSettings.testLimits || {};
+    const sectionDataForChart = sectionPerformances.reduce((acc, perf) => {
+        if (!acc[perf.name]) {
+            acc[perf.name] = { totalScore: 0, count: 0 };
+        }
+        acc[perf.name].totalScore += perf.score;
+        acc[perf.name].count++;
+        return acc;
+    }, {});
+
+    const chartData = Object.keys(sectionDataForChart).map(name => ({
+        name,
+        avgScore: Math.round(sectionDataForChart[name].totalScore / sectionDataForChart[name].count),
+    }));
+
+    if (isLoading || loadingHistory || !userProfile || !appSettings) {
+        return <div>Loading dashboard...</div>;
+    }
 
     const isNewStudent = testHistory.length === 0 && Object.values(userProfile.testAttempts || {}).every(attempts => attempts === 0);
 
@@ -191,12 +207,12 @@ export default function StudentDashboard({ userProfile }) {
                                 <p className="text-sm text-gray-500">{new Date(result.completedAt.seconds * 1000).toLocaleString()}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-2xl font-bold text-indigo-600">{result.score}</p>
+                                <p className="text-2xl font-bold text-indigo-600">{result.score ?? 'No last test score'}</p>
                                 <button onClick={() => onViewResult(result)} className="text-sm text-indigo-500 hover:underline">View Details</button>
                             </div>
                         </div>
                     ))}
-                </div>
+                </div>np
             </div>
         </div>
     );

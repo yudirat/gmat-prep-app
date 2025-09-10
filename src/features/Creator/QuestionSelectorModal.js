@@ -1,15 +1,16 @@
-// This component provides a modal for selecting an existing question from the question bank.
+// This component provides a modal for selecting existing questions from the question bank.
 import React, { useState, useEffect } from 'react';
 import Modal from '../../components/Modal';
 import ContentRenderer from '../../components/ContentRenderer';
 
 /**
- * QuestionSelectorModal component allows users to select an existing question from a list.
+ * QuestionSelectorModal component allows users to select multiple existing questions from a list.
  * It provides filtering options to narrow down the question selection.
  */
-export default function QuestionSelectorModal({ isOpen, onClose, questions = [], onQuestionSelect }) {
-    // State for filtered questions and filter criteria
+export default function QuestionSelectorModal({ isOpen, onClose, questions = [], onCopySelected }) {
+    // State for filtered questions, filter criteria, and selected question IDs
     const [filteredQuestions, setFilteredQuestions] = useState(questions);
+    const [selectedQuestionsWithCopies, setSelectedQuestionsWithCopies] = useState([]);
     const [filters, setFilters] = useState({
         section: 'All',
         difficulty: 'All',
@@ -46,17 +47,44 @@ export default function QuestionSelectorModal({ isOpen, onClose, questions = [],
     };
 
     /**
-     * Handles the selection of a question.
-     * Calls the `onQuestionSelect` callback with the selected question and closes the modal.
-     * @param {object} question - The selected question object.
+     * Toggles the selection of a question and initializes/updates its copy count.
+     * @param {object} question - The question object to toggle.
      */
-    const handleSelect = (question) => {
-        onQuestionSelect(question);
+    const handleToggleQuestion = (question) => {
+        setSelectedQuestionsWithCopies(prev => {
+            const existing = prev.find(item => item.id === question.id);
+            if (existing) {
+                return prev.filter(item => item.id !== question.id);
+            } else {
+                return [...prev, { ...question, copies: 1 }]; // Initialize copies to 1
+            }
+        });
+    };
+
+    /**
+     * Handles changes to the number of copies for a selected question.
+     * @param {string} questionId - The ID of the question.
+     * @param {number} copies - The new number of copies.
+     */
+    const handleCopyChange = (questionId, copies) => {
+        setSelectedQuestionsWithCopies(prev =>
+            prev.map(item =>
+                item.id === questionId ? { ...item, copies: Math.max(1, parseInt(copies) || 1) } : item
+            )
+        );
+    };
+
+    /**
+     * Handles the final selection of multiple questions.
+     * Calls the `onCopySelected` callback with the selected questions and closes the modal.
+     */
+    const handleConfirmSelection = () => {
+        onCopySelected(selectedQuestionsWithCopies);
         onClose();
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Select a Question to Copy">
+        <Modal isOpen={isOpen} onClose={onClose} title="Select Questions to Copy">
             <div className="space-y-4">
                 {/* Filter Controls Section */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
@@ -88,20 +116,45 @@ export default function QuestionSelectorModal({ isOpen, onClose, questions = [],
                 </div>
 
                 {/* Question List Section */}
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="space-y-2 max-h-80 overflow-y-auto">
                     {filteredQuestions.length > 0 ? (
                         filteredQuestions.map(q => (
-                            <div key={q.id} className="p-2 border rounded-lg flex justify-between items-center">
+                            <div key={q.id} className="p-2 border rounded-lg flex items-center">
+                                <input 
+                                    type="checkbox"
+                                    checked={selectedQuestionsWithCopies.some(item => item.id === q.id)}
+                                    onChange={() => handleToggleQuestion(q)} 
+                                    className="mr-4 h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"
+                                />
                                 <div className="text-sm text-gray-800 flex-1">
-                                    {/* Render the question text using ContentRenderer */}
                                     <ContentRenderer content={q.questionText} />
                                 </div>
-                                <button onClick={() => handleSelect(q)} className="bg-green-500 text-white px-3 py-1 rounded-md text-sm ml-4">Select</button>
+                                {selectedQuestionsWithCopies.some(item => item.id === q.id) && (
+                                    <div className="ml-4 flex items-center">
+                                        <label htmlFor={`copies-${q.id}`} className="sr-only">Number of Copies</label>
+                                        <input
+                                            id={`copies-${q.id}`}
+                                            type="number"
+                                            min="1"
+                                            value={selectedQuestionsWithCopies.find(item => item.id === q.id)?.copies || 1}
+                                            onChange={(e) => handleCopyChange(q.id, e.target.value)}
+                                            className="w-20 p-1 border rounded-md text-center"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         ))
                     ) : (
                         <p>No questions found matching your criteria.</p>
                     )}
+                </div>
+
+                {/* Confirmation Button */}
+                <div className="flex justify-end pt-4 border-t">
+                     <button onClick={onClose} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md mr-2">Cancel</button>
+                    <button onClick={handleConfirmSelection} className="bg-indigo-600 text-white px-4 py-2 rounded-md disabled:bg-gray-400" disabled={selectedQuestionsWithCopies.length === 0}>
+                        Copy {selectedQuestionsWithCopies.length} Question{selectedQuestionsWithCopies.length !== 1 ? 's' : ''}
+                    </button>
                 </div>
             </div>
         </Modal>

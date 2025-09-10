@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, doc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, appId } from '../firebase';
 import { useUser } from '../contexts/UserContext';
 
@@ -26,60 +26,71 @@ const useData = () => {
 
     setIsLoading(true);
 
-    const collectionsToFetch = [
-      { name: 'questions', setState: setQuestions },
-      { name: 'passages', setState: setPassages },
-      { name: 'msrSets', setState: setMsrSets },
-      { name: 'graphicStimuli', setState: setGraphicStimuli },
-      { name: 'tableStimuli', setState: setTableStimuli },
-      { name: 'roles', setState: setRoles },
-    ];
-
     const unsubscribes = [];
-    const promises = [];
 
-    collectionsToFetch.forEach(({ name, setState }) => {
-      const q = query(collection(db, `artifacts/${appId}/public/data/${name}`));
-      const promise = new Promise(resolve => {
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-          setState(data);
-          resolve(); // Resolve the promise when data is fetched
-        }, (error) => {
-          console.error(`Error fetching ${name}:`, error);
-          resolve(); // Resolve even on error to avoid blocking
-        });
-        unsubscribes.push(unsubscribe);
-      });
-      promises.push(promise);
-    });
+    const setupDataListeners = async () => {
+      // 1. Handle appSettings first to ensure it exists
+      const settingsDocRef = doc(db, `artifacts/${appId}/public/data/appSettings/config`);
+      try {
+        const docSnap = await getDoc(settingsDocRef);
+        if (!docSnap.exists()) {
+          const defaultSettings = {
+            isPracticeHubActive: true,
+            isMockTestActive: true,
+            isSectionalTestActive: true,
+            testLimits: { quantLimit: 5, verbalLimit: 5, diLimit: 5, mockLimit: 3 }
+          };
+          await setDoc(settingsDocRef, defaultSettings);
+          setAppSettings(defaultSettings);
+        } else {
+          setAppSettings(docSnap.data());
+        }
+      } catch (error) {
+        console.error("Error ensuring appSettings exist:", error);
+      }
 
-    const settingsDocRef = doc(db, `artifacts/${appId}/public/data/appSettings/config`);
-    const settingsPromise = new Promise(resolve => {
-      const unsubscribeSettings = onSnapshot(settingsDocRef, async (docSnap) => {
-          if (docSnap.exists()) {
-              setAppSettings(docSnap.data());
-          } else {
-              // Create default app settings if they don't exist
-              const defaultSettings = {
-                  isPracticeHubActive: true,
-                  isMockTestActive: true,
-                  isSectionalTestActive: true,
-                  testLimits: { quantLimit: 5, verbalLimit: 5, diLimit: 5, mockLimit: 3 }
-              };
-              await setDoc(settingsDocRef, defaultSettings);
-              setAppSettings(defaultSettings);
-          }
-          resolve();
+      // Now set up the real-time listener for appSettings
+      const unsubscribeSettings = onSnapshot(settingsDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setAppSettings(docSnap.data());
+        }
+      }, (error) => {
+        console.error("Error fetching appSettings real-time:", error);
       });
       unsubscribes.push(unsubscribeSettings);
-    });
-    promises.push(settingsPromise);
 
-    Promise.all(promises).then(() => {
-      console.log("All data fetched, setting isLoading to false");
+      // 2. Set up listeners for other collections
+      const collectionsToFetch = [
+        { name: 'questions', setState: setQuestions },
+        { name: 'passages', setState: setPassages },
+        { name: 'msrSets', setState: setMsrSets },
+        { name: 'graphicStimuli', setState: setGraphicStimuli },
+        { name: 'tableStimuli', setState: setTableStimuli },
+        { name: 'roles', setState: setRoles },
+      ];
+
+      const promises = [];
+      collectionsToFetch.forEach(({ name, setState }) => {
+        const q = query(collection(db, `artifacts/${appId}/public/data/${name}`));
+        const promise = new Promise(resolve => {
+          const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+            setState(data);
+            resolve();
+          }, (error) => {
+            console.error(`Error fetching ${name}:`, error);
+            resolve();
+          });
+          unsubscribes.push(unsubscribe);
+        });
+        promises.push(promise);
+      });
+
+      await Promise.all(promises);
       setIsLoading(false);
-    });
+    };
+
+    setupDataListeners();
 
     return () => {
       unsubscribes.forEach((unsub) => unsub());

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { useUser } from './contexts/UserContext';
 import withAuthorization from './components/withAuthorization';
 import Layout from './components/Layout';
@@ -28,23 +28,23 @@ const QuestionBankManagerWithAuth = withAuthorization(['Admin', 'Educator'])(Que
 
 const AppRouter = () => {
   const { user, userProfile, isAuthReady } = useUser();
-  const { questions, passages, msrSets, graphicStimuli, tableStimuli, roles, appSettings, isLoading } = useData();
+  const { questions, isLoading } = useData();
+  
 
   if (!isAuthReady || isLoading) {
     return <div className="flex items-center justify-center h-screen bg-gray-100"><div className="text-xl font-semibold text-gray-700">Loading App...</div></div>;
   }
 
   return (
-    <Router>
-      {user ? (
+      user ? (
         <Layout>
           <Routes>
             <Route path="/" element={<HomeScreen onStartTest={() => {}} onStartPractice={() => {}} onStartMock={() => {}} />} />
             <Route path="/dashboard" element={<StudentDashboard userProfile={userProfile} />} />
             <Route path="/admin" element={<AdminDashboardWithAuth />} />
-            <Route path="/create" element={<CreatorDashboardWithAuth setView={() => {}} />} />
-            <Route path="/create-form" element={<TestCreatorWithAuth setView={() => {}} />} />
-            <Route path="/question-bank" element={<QuestionBankManagerWithAuth handleEditQuestion={() => {}} />} />
+            <Route path="/create" element={<CreatorDashboardWithAuth />} />
+            <Route path="/create-form" element={<TestCreatorWithAuth user={user} setView={() => {}} />} />
+            <Route path="/question-bank" element={<QuestionBankManagerWithAuth questions={questions} handleEditQuestion={() => {}} />} />
             <Route path="/practice" element={<PracticeHub allQuestions={questions} />} />
             <Route path="/take-test" element={<TestTaker onTestComplete={() => {}} testType="" />} />
             <Route path="/take-mock" element={<MockGmatFlow onMockComplete={() => {}} />} />
@@ -59,8 +59,7 @@ const AppRouter = () => {
           <Route path="/signup" element={<SignUpScreen />} />
           <Route path="*" element={<LoginScreen />} />
         </Routes>
-      )}
-    </Router>
+      )
   );
 };
 

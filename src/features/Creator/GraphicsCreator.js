@@ -13,8 +13,8 @@ export default function GraphicsCreator({ user, onSave, initialData, allGraphicS
     const [graphicStimulus, setGraphicStimulus] = useState({ image: '', blurb: [{ type: 'text', value: '' }] });
     const [subQuestion, setSubQuestion] = useState({...defaultSubQuestion});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const [, setError] = useState('');
+    const [, setSuccess] = useState('');
 
     // Effect to populate the form when editing an existing graphic question
     useEffect(() => {

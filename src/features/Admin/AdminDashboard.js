@@ -7,7 +7,7 @@ import { useDataFromContext as useData } from '../../contexts/DataContext';
 export default function AdminDashboard() {
     const { roles, appSettings, isLoading } = useData();
     const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [, setLoading] = useState(true);
     const [newUserUid, setNewUserUid] = useState('');
     const [newUserRole, setNewUserRole] = useState('');
     const [message, setMessage] = useState('');

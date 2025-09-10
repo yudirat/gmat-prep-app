@@ -36,7 +36,7 @@ export default function ContentRenderer({ content }) {
                 }
                 if (block.type === 'image') {
                     // Render image blocks
-                    return <img key={index} src={block.value} alt={`Content image ${index}`} className="max-w-full h-auto rounded mx-auto" />;
+                    return <img key={index} src={block.value} alt={`Content ${index}`} className="max-w-full h-auto rounded mx-auto" />;
                 }
                 if (block.type === 'table') {
                     // Render table blocks

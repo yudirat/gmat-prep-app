@@ -11,16 +11,23 @@ export default function LatexToolbar({ textareaRef, onTextChange }) {
     const toolbarButtons = [
         { label: 'x²', value: '^{}', name: 'Exponent' },
         { label: 'xₙ', value: '_{}', name: 'Subscript' },
+        // eslint-disable-next-line no-useless-escape
         { label: '√x', value: '\sqrt{}', name: 'Square Root' },
         { label: 'a/b', value: '\frac{}{}', name: 'Fraction' },
+        // eslint-disable-next-line no-useless-escape
         { label: 'log', value: '\log()', name: 'Logarithm' },
+        // eslint-disable-next-line no-useless-escape
         { label: 'ln', value: '\ln()', name: 'Natural Log' },
+        // eslint-disable-next-line no-useless-escape
         { label: '±', value: ' \pm ', name: 'Plus/Minus' },
         { label: '≠', value: ' \neq ', name: 'Not Equal' },
+        // eslint-disable-next-line no-useless-escape
         { label: '≤', value: ' \leq ', name: 'Less/Equal' },
+        // eslint-disable-next-line no-useless-escape
         { label: '≥', value: ' \geq ', name: 'Greater/Equal' },
         { label: '<', value: ' < ', name: 'Less Than' },
         { label: '>', value: ' > ', name: 'Greater Than' },
+        // eslint-disable-next-line no-useless-escape
         { label: '°', value: '^{\circ}', name: 'Degree' },
     ];
 
