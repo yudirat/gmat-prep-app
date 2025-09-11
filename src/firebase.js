@@ -11,7 +11,7 @@ import { getFirestore } from 'firebase/firestore';
 const firebaseConfig = {
     apiKey: "AIzaSyA99On_n6-sp23bn7Nzd4Vv4FpQt47HnY4",
   authDomain: "gmat-focus.firebaseapp.com",
-  projectId: "gmat-focus-app",
+  projectId: "gmat-focus",
   storageBucket: "gmat-focus.firebasestorage.app",
   messagingSenderId: "251120900436",
   appId: "1:251120900436:web:e9e8efb5255c52a85810c1",

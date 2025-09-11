@@ -7,7 +7,7 @@ import ContentRenderer from '../../components/ContentRenderer';
  * QuestionSelectorModal component allows users to select multiple existing questions from a list.
  * It provides filtering options to narrow down the question selection.
  */
-export default function QuestionSelectorModal({ isOpen, onClose, questions = [], onCopySelected }) {
+export default function QuestionSelectorModal({ isOpen, onClose, questions = [], onCopySelected, onCopyForEditing }) {
     // State for filtered questions, filter criteria, and selected question IDs
     const [filteredQuestions, setFilteredQuestions] = useState(questions);
     const [selectedQuestionsWithCopies, setSelectedQuestionsWithCopies] = useState([]);
@@ -152,8 +152,11 @@ export default function QuestionSelectorModal({ isOpen, onClose, questions = [],
                 {/* Confirmation Button */}
                 <div className="flex justify-end pt-4 border-t">
                      <button onClick={onClose} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md mr-2">Cancel</button>
+                    <button onClick={() => onCopyForEditing(selectedQuestionsWithCopies[0])} className="bg-blue-600 text-white px-4 py-2 rounded-md disabled:bg-gray-400" disabled={selectedQuestionsWithCopies.length !== 1}>
+                        Edit Before Saving
+                    </button>
                     <button onClick={handleConfirmSelection} className="bg-indigo-600 text-white px-4 py-2 rounded-md disabled:bg-gray-400" disabled={selectedQuestionsWithCopies.length === 0}>
-                        Copy {selectedQuestionsWithCopies.length} Question{selectedQuestionsWithCopies.length !== 1 ? 's' : ''}
+                        Copy Selected
                     </button>
                 </div>
             </div>

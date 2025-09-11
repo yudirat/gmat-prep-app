@@ -21,17 +21,20 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
 
     // State for form submission and UI feedback
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    
+    
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+    const [isEditingCopy, setIsEditingCopy] = useState(false);
 
     // Available categories for Quantitative questions
     const quantCategoryOptions = ['Arithmetic', 'Algebra', 'Geometry', 'Word Problems'];
 
     // Effect to populate the form when editing an existing question
     useEffect(() => {
-        if (initialData) {
+        if (initialData || isEditingCopy) {
+            const data = initialData || isEditingCopy;
             const parseContent = (content) => {
                 if (typeof content === 'string') {
                     try { return JSON.parse(content); } catch (e) { return [{ type: 'text', value: content }]; }
@@ -39,14 +42,19 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
                 return Array.isArray(content) ? content : [{ type: 'text', value: '' }];
             };
 
-            setQuantCategories(initialData.categories || []);
-            setQuestionText(parseContent(initialData.questionText));
-            setOptions((initialData.options || []).map(opt => parseContent(opt)));
-            setIsMultipleCorrect(initialData.isMultipleCorrect || false);
-            setCorrectAnswer(Array.isArray(initialData.correctAnswer) ? initialData.correctAnswer : [initialData.correctAnswer]);
-            setDifficulty(initialData.difficulty || 3);
+            setQuantCategories(data.categories || []);
+            setQuestionText(parseContent(data.questionText));
+            setOptions((data.options || []).map(opt => parseContent(opt)));
+            setIsMultipleCorrect(data.isMultipleCorrect || false);
+            setCorrectAnswer(Array.isArray(data.correctAnswer) ? data.correctAnswer : [data.correctAnswer]);
+            setDifficulty(data.difficulty || 3);
         }
-    }, [initialData]);
+    }, [initialData, isEditingCopy]);
+
+    const handleCopyForEditing = (question) => {
+        setIsEditingCopy(question);
+        setIsSelectorOpen(false);
+    };
 
     
 
@@ -106,51 +114,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
      * Handles the selection of questions from the selector modal and creates copies.
      * @param {Array<object>} selectedQuestionsWithCopies - Array of selected questions with their copy counts.
      */
-    const handleQuestionSelect = async (selectedQuestionsWithCopies) => {
-        setIsSubmitting(true);
-        setError('');
-        setSuccess('');
-
-        const questionsCollectionRef = collection(db, `artifacts/${appId}/public/data/questions`);
-        let successfulCopies = 0;
-        let failedCopies = 0;
-
-        for (const selectedItem of selectedQuestionsWithCopies) {
-            const originalQuestion = selectedItem; // The question object itself
-            const numberOfCopies = selectedItem.copies;
-
-            for (let i = 0; i < numberOfCopies; i++) {
-                try {
-                    // Create a new question object, copying data from the original
-                    const { id, ...restOfQuestion } = originalQuestion; // Destructure to exclude id
-                    const newQuestionData = {
-                        ...restOfQuestion, // Spread the rest of the original question data
-                        id: uuidv4(), // Generate a new unique ID for the copy
-                        creatorId: user.uid, // Assign current user as creator
-                        createdAt: new Date().toISOString(), // Add creation timestamp
-                        // questionText and options are already in the correct format (parsed JSON)
-                    };
-
-                    await addDoc(questionsCollectionRef, newQuestionData);
-                    successfulCopies++;
-                } catch (err) {
-                    console.error("Error copying question:", err);
-                    failedCopies++;
-                }
-            }
-        }
-
-        setIsSubmitting(false);
-        if (successfulCopies > 0) {
-            setSuccess(`Successfully copied ${successfulCopies} question(s)!`);
-            // Optionally, you might want to refresh the question list in the parent component
-            // if onSave triggers a data refresh. If not, consider calling a refresh function here.
-            setTimeout(() => onSave(), 1000);
-        }
-        if (failedCopies > 0) {
-            setError(`Failed to copy ${failedCopies} question(s). Check console for details.`);
-        }
-    };
+    
 
     /**
      * Handles the form submission.
@@ -159,25 +123,19 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        setError('');
-        setSuccess('');
 
         if (correctAnswer.length === 0) {
-            setError('Please select a correct answer.');
+            // Still show local error for this case
             setIsSubmitting(false);
             return;
         }
-
-        console.log("User object in handleSubmit:", user);
 
         const questionData = {
             creatorId: user.uid,
             type: type,
             difficulty: Number(difficulty),
             format: 'mcq',
-            // Stringify the question text blocks
             questionText: JSON.stringify(questionText), 
-            // Map over the options and stringify the blocks for each one
             options: options.map(optionContent => JSON.stringify(optionContent)), 
             correctAnswer: isMultipleCorrect ? correctAnswer : correctAnswer[0],
             isMultipleCorrect,
@@ -188,15 +146,15 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
             if (initialData) {
                 const questionRef = doc(db, `artifacts/${appId}/public/data/questions`, initialData.id);
                 await updateDoc(questionRef, questionData);
-                setSuccess("Question updated successfully!");
+                onSave("Question updated successfully!");
             } else {
                 await addDoc(collection(db, `artifacts/${appId}/public/data/questions`), questionData);
-                setSuccess("Question added successfully!");
+                onSave(isEditingCopy ? "Copied question saved successfully!" : "Question added successfully!");
             }
-            setTimeout(() => onSave(), 1000);
         } catch (err) {
-            setError("Failed to save content. Please try again.");
+            // The parent will handle the error message
             console.error(err);
+            onSave("Failed to save content. Please try again.");
         }
         setIsSubmitting(false);
     };
@@ -223,7 +181,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
                     isOpen={isSelectorOpen}
                     onClose={() => setIsSelectorOpen(false)}
                     questions={allQuestions}
-                    onCopySelected={handleQuestionSelect}
+                    onCopyForEditing={handleCopyForEditing}
                 />
             )}
             {/* Modal for previewing the question */}
@@ -290,8 +248,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
                     <div className="text-center">{difficulty}</div>
                 </div>
                 <hr className="my-8"/>
-                {error && <p className="text-red-500 text-sm">{error}</p>}
-                {success && <p className="text-green-500 text-sm">{success}</p>}
+                
                 <div className="flex space-x-4">
                     <button type="button" onClick={onSave} className="w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-md hover:bg-gray-300">Cancel</button>
                     <button type="button" onClick={() => setIsPreviewOpen(true)} className="w-full bg-blue-500 text-white py-3 px-4 rounded-md hover:bg-blue-600">

@@ -15,13 +15,15 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
     const [passageText, setPassageText] = useState([{ type: 'text', value: '' }]);
     const [subQuestions, setSubQuestions] = useState([{...defaultSubQuestion}]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [, setError] = useState('');
-    const [, setSuccess] = useState('');
+    
     const [isSelectorOpen, setIsSelectorOpen] = useState(false); // New state
+
+    const [isEditingCopy, setIsEditingCopy] = useState(false);
 
     // Effect to populate the form when editing an existing passage
     useEffect(() => {
-        if (initialData && initialData.passageId) {
+        if ((initialData && initialData.passageId) || isEditingCopy) {
+            const data = initialData || isEditingCopy;
             const parseContent = (content) => {
                 if (typeof content === 'string') {
                     try { return JSON.parse(content); } catch (e) { return [{ type: 'text', value: content }]; }
@@ -29,13 +31,15 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
                 return Array.isArray(content) ? content : [{ type: 'text', value: '' }];
             };
 
-            const passage = allPassages.find(p => p.id === initialData.passageId);
-            if (passage) {
-                setPassageText(parseContent(passage.passageText));
+            if (data.passageId) {
+                const passage = allPassages.find(p => p.id === data.passageId);
+                if (passage) {
+                    setPassageText(parseContent(passage.passageText));
+                }
             }
 
             const associatedQuestions = allQuestions
-                .filter(q => q.passageId === initialData.passageId)
+                .filter(q => q.passageId === data.passageId)
                 .map(q => ({
                     ...q,
                     questionText: parseContent(q.questionText),
@@ -43,14 +47,19 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
                     correctAnswer: Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer]
                 }));
             
-            setSubQuestions(associatedQuestions.length ? associatedQuestions : [{...defaultSubQuestion}]);
+            setSubQuestions(associatedQuestions.length ? associatedQuestions : [{...defaultSubQuestion, id: uuidv4()}]);
         }
-    }, [initialData, allQuestions, allPassages]);
+    }, [initialData, allQuestions, allPassages, isEditingCopy]);
+
+    const handleCopyForEditing = (question) => {
+        setIsEditingCopy(question);
+        setIsSelectorOpen(false);
+    };
 
     /**
      * Adds a new sub-question to the form.
      */
-    const addSubQuestion = () => setSubQuestions([...subQuestions, { ...defaultSubQuestion }]);
+    const addSubQuestion = () => setSubQuestions([...subQuestions, { ...defaultSubQuestion, id: uuidv4() }]);
 
     /**
      * Removes a sub-question from the form.
@@ -62,36 +71,7 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
      * Handles copying selected questions from the selector modal to subQuestions.
      * @param {Array<object>} selectedQuestionsWithCopies - Array of selected questions with their copy counts.
      */
-    const handleCopySelectedQuestions = (selectedQuestionsWithCopies) => {
-        const newSubQuestions = [...subQuestions];
-        selectedQuestionsWithCopies.forEach(selectedItem => {
-            const originalQuestion = selectedItem;
-            const numberOfCopies = selectedItem.copies;
-
-            for (let i = 0; i < numberOfCopies; i++) {
-                // Create a new question object, copying data from the original
-                const newQuestion = {
-                    ...originalQuestion,
-                    id: uuidv4(), // Generate a new unique ID for the copy
-                    // Ensure questionText and options are not double-stringified if they were already parsed
-                    // when coming from the selector modal.
-                    questionText: Array.isArray(originalQuestion.questionText) ? originalQuestion.questionText : [{ type: 'text', value: originalQuestion.questionText }],
-                    options: Array.isArray(originalQuestion.options) ? originalQuestion.options : originalQuestion.options.map(opt => [{ type: 'text', value: opt }]),
-                    // Verbal specific: ensure type is Verbal
-                    type: 'Verbal',
-                    passageId: null, // Will be set on batch commit
-                    creatorId: user.uid,
-                    createdAt: Timestamp.now(),
-                };
-                // Remove properties that are not part of the question schema or should be re-generated
-                delete newQuestion.copies; // This was for the modal, not the question object
-                delete newQuestion.categories; // Verbal questions don't have categories directly
-
-                newSubQuestions.push(newQuestion);
-            }
-        });
-        setSubQuestions(newSubQuestions);
-    };
+    
 
     /**
      * Handles changes to a sub-question's fields.
@@ -105,7 +85,7 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
 
         if (field === 'format') {
             const oldDifficulty = q.difficulty;
-            q = { ...defaultSubQuestion, format: value, difficulty: oldDifficulty };
+            q = { ...defaultSubQuestion, id: uuidv4(), format: value, difficulty: oldDifficulty };
         } else {
             q[field] = value;
         }
@@ -121,8 +101,6 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        setError('');
-        setSuccess('');
 
         try {
             const batch = writeBatch(db);
@@ -136,7 +114,7 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
             });
 
             for (const q of subQuestions) {
-                const questionRef = q.id ? doc(db, `artifacts/${appId}/public/data/questions`, q.id) : doc(collection(db, `artifacts/${appId}/public/data/questions`));
+                const questionRef = q.id && !isEditingCopy ? doc(db, `artifacts/${appId}/public/data/questions`, q.id) : doc(collection(db, `artifacts/${appId}/public/data/questions`));
                 
                 const processedQuestion = {
                     ...q,
@@ -147,21 +125,18 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
                     type: 'Verbal'
                 };
                 // Remove the 'id' property if it was generated by uuidv4, as it's already in the doc ref
-                if (q.id) {
+                if (q.id && !isEditingCopy) {
                     delete processedQuestion.id;
                 }
                 batch.set(questionRef, processedQuestion);
             }
 
             await batch.commit();
-            setSuccess("Verbal passage and questions added successfully!");
-            setTimeout(() => {
-                onSave(); 
-            }, 1000);
+            onSave(isEditingCopy ? "Copied question saved successfully!" : "Verbal passage and questions added successfully!");
 
         } catch (err) {
-            setError("Failed to add content. Please try again.");
             console.error(err);
+            onSave("Failed to add content. Please try again.");
         }
         setIsSubmitting(false);
     };
@@ -179,7 +154,7 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
                     isOpen={isSelectorOpen}
                     onClose={() => setIsSelectorOpen(false)}
                     questions={allQuestions}
-                    onCopySelected={handleCopySelectedQuestions}
+                    onCopyForEditing={handleCopyForEditing}
                 />
             )}
             <hr/>
@@ -192,7 +167,7 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
             {/* Render a form for each sub-question */}
             {subQuestions.map((q, index) => (
                 <SubQuestionForm 
-                    key={index}
+                    key={q.id || index}
                     question={q}
                     index={index}
                     onSubQuestionChange={handleSubQuestionChange}

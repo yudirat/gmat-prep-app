@@ -9,7 +9,7 @@ import { db, appId } from '../../firebase';
  * Component for managing questions in the question bank.
  * Allows filtering, editing, and deleting questions.
  */
-export default function QuestionBankManager({ questions, handleEditQuestion }) {
+export default function QuestionBankManager({ questions, handleEditQuestion, setView }) {
     // State for filtered questions, filters, and delete confirmation modal
     const [filteredQuestions, setFilteredQuestions] = useState(questions);
     const [filters, setFilters] = useState({
@@ -110,7 +110,17 @@ export default function QuestionBankManager({ questions, handleEditQuestion }) {
                 </Modal>
             )}
 
-            <h2 className="text-3xl font-bold text-gray-800 mb-6">Question Bank</h2>
+                        <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-gray-800">Question Bank ({filteredQuestions.length})</h2>
+                <div className="space-x-4">
+                    <button onClick={() => setView('createForm')} className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
+                        + Add New Content
+                    </button>
+                    <button onClick={() => setView('dashboard')} className="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700">
+                        Back to Dashboard
+                    </button>
+                </div>
+            </div>
             
             {/* Filter controls */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-4 bg-gray-50 rounded-lg">

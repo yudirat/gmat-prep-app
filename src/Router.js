@@ -43,8 +43,6 @@ const AppRouter = () => {
             <Route path="/dashboard" element={<StudentDashboard userProfile={userProfile} />} />
             <Route path="/admin" element={<AdminDashboardWithAuth />} />
             <Route path="/create" element={<CreatorDashboardWithAuth />} />
-            <Route path="/create-form" element={<TestCreatorWithAuth user={user} setView={() => {}} />} />
-            <Route path="/question-bank" element={<QuestionBankManagerWithAuth questions={questions} handleEditQuestion={() => {}} />} />
             <Route path="/practice" element={<PracticeHub allQuestions={questions} />} />
             <Route path="/take-test" element={<TestTaker onTestComplete={() => {}} testType="" />} />
             <Route path="/take-mock" element={<MockGmatFlow onMockComplete={() => {}} />} />
