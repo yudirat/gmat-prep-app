@@ -71,6 +71,47 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
      * Handles copying selected questions from the selector modal to subQuestions.
      * @param {Array<object>} selectedQuestionsWithCopies - Array of selected questions with their copy counts.
      */
+    const handleCopySelected = async (selectedQuestionsWithCopies) => {
+        setIsSubmitting(true); // Indicate submission is in progress
+        try {
+            const batch = writeBatch(db);
+            const newSubQuestions = []; // To store questions that will be added to local state
+    
+            for (const q of selectedQuestionsWithCopies) {
+                // Create copies and prepare them for Firestore
+                for (let i = 0; i < (q.copies || 1); i++) {
+                    const newQuestionRef = doc(collection(db, `artifacts/${appId}/public/data/questions`));
+                    const processedQuestion = {
+                        ...q,
+                        id: newQuestionRef.id, // Assign new Firestore ID
+                        questionText: JSON.stringify(q.questionText),
+                        options: q.options.map(opt => JSON.stringify(opt)),
+                        creatorId: user.uid,
+                        type: 'Verbal',
+                        createdAt: Timestamp.now() // Add creation timestamp
+                    };
+                    // Remove original ID if it exists, as we're creating a new document
+                    delete processedQuestion.passageId; // Remove passageId as it's not associated yet
+                    delete processedQuestion.msrSetId; // Remove msrSetId if it exists
+                    delete processedQuestion.id; // Remove original ID
+    
+                    batch.set(newQuestionRef, processedQuestion);
+                    newSubQuestions.push({ ...processedQuestion, id: newQuestionRef.id }); // Add to local state with new ID
+                }
+            }
+    
+            await batch.commit();
+            // Update local state after successful Firestore write
+            setSubQuestions(prev => [...prev.filter(sq => sq.questionText !== '[{"type":"text","value":""}]'), ...newSubQuestions]);
+            onSave("Questions copied successfully to question bank!"); // Success message
+        } catch (err) {
+            console.error("Error copying questions:", err);
+            onSave("Failed to copy questions. Please try again."); // Error message
+        } finally {
+            setIsSubmitting(false); // End submission
+            setIsSelectorOpen(false); // Close modal
+        }
+    };
     
 
     /**
@@ -118,8 +159,8 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
                 
                 const processedQuestion = {
                     ...q,
-                    questionText: typeof q.questionText === 'string' ? q.questionText : JSON.stringify(q.questionText),
-                    options: q.options.map(opt => typeof opt === 'string' ? opt : JSON.stringify(opt)),
+                    questionText: JSON.stringify(q.questionText),
+                    options: q.options.map(opt => JSON.stringify(opt)),
                     creatorId: user.uid,
                     passageId: passageRef.id,
                     type: 'Verbal'
@@ -154,6 +195,7 @@ export default function VerbalPassageCreator({ user, onSave, initialData, allQue
                     isOpen={isSelectorOpen}
                     onClose={() => setIsSelectorOpen(false)}
                     questions={allQuestions}
+                    onCopySelected={handleCopySelected}
                     onCopyForEditing={handleCopyForEditing}
                 />
             )}

@@ -20,10 +20,7 @@ export default function CreatorDashboard() {
         setView('createForm');
     };
 
-    const handleBackToDashboard = () => {
-        setView('dashboard');
-        setEditingQuestionId(null); // Clear editing state
-    };
+    
     
     // Prepare data for the Pie Chart: number of questions per section
     const sectionData = [

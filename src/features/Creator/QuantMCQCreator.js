@@ -1,11 +1,10 @@
 // This component is used to create and edit Quantitative and Data Insights Multiple Choice Questions.
 import React, { useState, useEffect } from 'react';
-import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, updateDoc, Timestamp, setDoc } from 'firebase/firestore';
 import { db, appId } from '../../firebase';
 import QuestionSelectorModal from './QuestionSelectorModal';
 import QuestionPreviewModal from './QuestionPreviewModal';
 import BlockEditor from '../../components/BlockEditor';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Component for creating and editing Quantitative and Data Insights Multiple Choice Questions.
@@ -56,7 +55,38 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
         setIsSelectorOpen(false);
     };
 
+    const handleCopySelected = async (selectedQuestionsWithCopies) => {
+        setIsSubmitting(true); // Indicate submission is in progress
+        try {
+            if (selectedQuestionsWithCopies.length > 0) {
+                const questionToCopy = selectedQuestionsWithCopies[0];
+                const newQuestionRef = doc(collection(db, `artifacts/${appId}/public/data/questions`));
     
+                const processedQuestion = {
+                    ...questionToCopy,
+                    id: newQuestionRef.id, // Assign new Firestore ID
+                    questionText: JSON.stringify(questionToCopy.questionText),
+                    options: questionToCopy.options.map(opt => JSON.stringify(opt)),
+                    creatorId: user.uid,
+                    type: type, // Use the component's type (Quant or Data Insights)
+                    createdAt: Timestamp.now() // Add creation timestamp
+                };
+                // Remove original ID and any association IDs as we're creating a new document
+                delete processedQuestion.passageId;
+                delete processedQuestion.msrSetId;
+                delete processedQuestion.id;
+    
+                await setDoc(newQuestionRef, processedQuestion);
+                onSave("Question copied successfully to question bank!"); // Success message
+            }
+        } catch (err) {
+            console.error("Error copying question:", err);
+            onSave("Failed to copy question. Please try again."); // Error message
+        } finally {
+            setIsSubmitting(false); // End submission
+            setIsSelectorOpen(false); // Close modal
+        }
+    };
 
     /**
      * Adds a new option to the question.
@@ -89,7 +119,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
 
     /**
      * Handles changes to the correct answer.
-     * @param {number} index - The index of the selected answer.
+     * @param {number} index - The selected answer.
      */
     const handleCorrectAnswerChange = (index) => {
         if (isMultipleCorrect) {
@@ -181,6 +211,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
                     isOpen={isSelectorOpen}
                     onClose={() => setIsSelectorOpen(false)}
                     questions={allQuestions}
+                    onCopySelected={handleCopySelected}
                     onCopyForEditing={handleCopyForEditing}
                 />
             )}
