@@ -10,7 +10,6 @@ const useData = () => {
   const [msrSets, setMsrSets] = useState([]);
   const [graphicStimuli, setGraphicStimuli] = useState([]);
   const [tableStimuli, setTableStimuli] = useState([]);
-  const [roles, setRoles] = useState([]);
   const [appSettings, setAppSettings] = useState({
     isPracticeHubActive: true,
     isMockTestActive: true,
@@ -66,7 +65,6 @@ const useData = () => {
         { name: 'msrSets', setState: setMsrSets },
         { name: 'graphicStimuli', setState: setGraphicStimuli },
         { name: 'tableStimuli', setState: setTableStimuli },
-        { name: 'roles', setState: setRoles },
       ];
 
       const promises = [];
@@ -97,7 +95,7 @@ const useData = () => {
     };
   }, [isAuthReady, user]);
 
-  return { questions, passages, msrSets, graphicStimuli, tableStimuli, roles, appSettings, isLoading };
+  return { questions, passages, msrSets, graphicStimuli, tableStimuli, appSettings, isLoading };
 };
 
 export default useData;

@@ -24,9 +24,9 @@ import StudentPerformance from './features/Analytics/StudentPerformance';
 import StudentDetail from './features/Analytics/StudentDetail';
 
 const AdminDashboardWithAuth = withAuthorization(['Admin'])(AdminDashboard);
-const CreatorDashboardWithAuth = withAuthorization(['Admin', 'Educator'])(CreatorDashboard);
-const TestCreatorWithAuth = withAuthorization(['Admin', 'Educator'])(TestCreator);
-const QuestionBankManagerWithAuth = withAuthorization(['Admin', 'Educator'])(QuestionBankManager);
+const CreatorDashboardWithAuth = withAuthorization(['Admin', 'Creator', 'Educator'])(CreatorDashboard);
+const TestCreatorWithAuth = withAuthorization(['Admin', 'Creator', 'Educator'])(TestCreator);
+const QuestionBankManagerWithAuth = withAuthorization(['Admin', 'Creator', 'Educator'])(QuestionBankManager);
 const StudentPerformanceWithAuth = withAuthorization(['Admin', 'Educator'])(StudentPerformance);
 const StudentDetailWithAuth = withAuthorization(['Admin', 'Educator'])(StudentDetail);
 
@@ -56,7 +56,7 @@ const AppRouter = () => {
       user ? (
         <Layout>
           <Routes>
-            <Route path="/" element={<HomeScreen onStartTest={() => {}} onStartPractice={() => {}} onStartMock={() => {}} />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={renderDashboard()} />
             <Route path="/admin" element={<AdminDashboardWithAuth />} />
             <Route path="/create" element={<CreatorDashboardWithAuth />} />

@@ -59,22 +59,17 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
         setIsSubmitting(true); // Indicate submission is in progress
         try {
             if (selectedQuestionsWithCopies.length > 0) {
-                const questionToCopy = selectedQuestionsWithCopies[0];
+                                const questionToCopy = selectedQuestionsWithCopies[0];
                 const newQuestionRef = doc(collection(db, `artifacts/${appId}/public/data/questions`));
     
-                const processedQuestion = {
-                    ...questionToCopy,
-                    id: newQuestionRef.id, // Assign new Firestore ID
-                    questionText: JSON.stringify(questionToCopy.questionText),
-                    options: questionToCopy.options.map(opt => JSON.stringify(opt)),
-                    creatorId: user.uid,
-                    type: type, // Use the component's type (Quant or Data Insights)
-                    createdAt: Timestamp.now() // Add creation timestamp
-                };
-                // Remove original ID and any association IDs as we're creating a new document
+                const processedQuestion = { ...questionToCopy };
+                delete processedQuestion.id; // Remove original ID
                 delete processedQuestion.passageId;
                 delete processedQuestion.msrSetId;
-                delete processedQuestion.id;
+
+                processedQuestion.creatorId = user.uid;
+                processedQuestion.type = type;
+                processedQuestion.createdAt = Timestamp.now();
     
                 await setDoc(newQuestionRef, processedQuestion);
                 onSave("Question copied successfully to question bank!"); // Success message

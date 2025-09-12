@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { auth } from '../../firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { functions } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
 
 const SignUpScreen = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +18,8 @@ const SignUpScreen = () => {
       return;
     }
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const createUser = httpsCallable(functions, 'createUser');
+      await createUser({ email, password, displayName });
       navigate('/');
     } catch (error) {
       setError(error.message);

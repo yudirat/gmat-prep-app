@@ -17,6 +17,7 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       if (authUser) {
+        await authUser.getIdToken(true); // Force refresh of custom claims
         const userRef = doc(db, `artifacts/${appId}/users`, authUser.uid);
         const userDoc = await getDoc(userRef);
         if (userDoc.exists()) {

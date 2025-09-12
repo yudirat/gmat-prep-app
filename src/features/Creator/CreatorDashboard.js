@@ -11,7 +11,7 @@ import QuestionBankManager from './QuestionBankManager';
  */
 export default function CreatorDashboard() {
     const { questions, isLoading } = useData();
-    const { user } = useUser();
+    const { user, userProfile } = useUser();
     const [view, setView] = useState('dashboard'); // 'dashboard', 'createForm', 'questionBank'
     const [editingQuestionId, setEditingQuestionId] = useState(null);
 

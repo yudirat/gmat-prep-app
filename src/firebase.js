@@ -3,6 +3,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
 
 /**
  * Firebase configuration object.
@@ -27,8 +28,11 @@ const auth = getAuth(app);
 // Get Firebase Firestore instance
 const db = getFirestore(app);
 
+// Get Firebase Functions instance
+const functions = getFunctions(app);
+
 // Define an application ID, useful for multi-tenant Firestore structures
 const appId = firebaseConfig.projectId;
 
 // Export the initialized services and config for use throughout the application
-export { auth, db, appId, firebaseConfig };
+export { auth, db, functions, appId, firebaseConfig };

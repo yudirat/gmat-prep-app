@@ -5,12 +5,11 @@ import RolesManager from './RolesManager';
 import { useDataFromContext as useData } from '../../contexts/DataContext';
 
 export default function AdminDashboard() {
-    const { roles, appSettings, isLoading } = useData();
+    const availableRoles = [{id: 'Admin', name: 'Admin'}, {id: 'Educator', name: 'Educator'}, {id: 'Creator', name: 'Creator'}, {id: 'Student', name: 'Student'}];
+    const { appSettings, isLoading } = useData();
     const [users, setUsers] = useState([]);
     const [, setLoading] = useState(true);
-    const [newUserUid, setNewUserUid] = useState('');
-    const [newUserRole, setNewUserRole] = useState('');
-    const [message, setMessage] = useState('');
+    
     const [testLimits, setTestLimits] = useState({
         quantLimit: 5,
         verbalLimit: 5,
@@ -43,36 +42,7 @@ export default function AdminDashboard() {
         }
     };
     
-    const handleAssignRole = async (e) => {
-        e.preventDefault();
-        if (!newUserUid) {
-            setMessage('Please provide a User ID (UID).');
-            return;
-        }
-        setMessage('Assigning role...');
-        const userRef = doc(db, `artifacts/${appId}/users`, newUserUid);
-        const userDoc = await getDoc(userRef);
-
-        if (userDoc.exists()) {
-            setMessage('This user already has a profile. You can modify their role in the table below.');
-            return;
-        }
-
-        try {
-            await setDoc(userRef, {
-                uid: newUserUid,
-                role: newUserRole,
-                createdAt: new Date(),
-                email: 'Manually Added',
-                displayName: 'New User'
-            });
-            setMessage('User profile created successfully!');
-            setNewUserUid('');
-        } catch (error) {
-            setMessage('Error creating profile. Please check the UID and try again.');
-            console.error("Error creating profile:", error);
-        }
-    };
+    
 
     const handleSettingChange = async (settingName, value) => {
         const newSettings = { ...appSettings, [settingName]: value };
@@ -185,36 +155,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
              </div>
-            <div>
-                <h2 className="text-3xl font-bold text-gray-800 mb-6">Create User Profile</h2>
-                 <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-                    <div>
-                        <h3 className="font-semibold text-lg">Step 1: Create User in Firebase Console</h3>
-                        <p className="text-sm text-gray-600">Go to the Firebase Console, create a new user in the Authentication section, and copy their UID.</p>
-                        <a href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/users`} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 bg-blue-500 text-white px-4 py-2 rounded-md text-sm">Go to Firebase Auth</a>
-                    </div>
-                    <hr/>
-                    <div>
-                         <h3 className="font-semibold text-lg">Step 2: Assign Role in This App</h3>
-                         <form onSubmit={handleAssignRole} className="flex items-end gap-4 mt-2">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">New User's UID</label>
-                                <input type="text" value={newUserUid} onChange={e => setNewUserUid(e.target.value)} placeholder="Paste UID from Firebase" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Role</label>
-                                <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                    {roles.map(role => (
-                                        <option key={role.id} value={role.id}>{role.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-md">Create Profile</button>
-                         </form>
-                         {message && <p className="text-sm mt-2 text-gray-600">{message}</p>}
-                    </div>
-                </div>
-            </div>
+            
             <div>
                 <h2 className="text-3xl font-bold text-gray-800 mb-6">Manage Existing Users</h2>
                 <div className="mb-4">
@@ -244,7 +185,7 @@ export default function AdminDashboard() {
                                     <td className="py-3 px-4">{user.role}</td>
                                     <td className="py-3 px-4">
                                         <select value={user.role} onChange={(e) => handleRoleChange(user.uid, e.target.value)} className="p-2 border rounded-md">
-                                            {roles.map(role => (
+                                            {availableRoles.map(role => (
                                                 <option key={role.id} value={role.id}>{role.name}</option>
                                             ))}
                                         </select>
