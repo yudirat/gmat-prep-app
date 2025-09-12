@@ -2,11 +2,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /artifacts/{appId}/users/{userId} {
-      // Allow users to read/write their own document
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Allow Admins to read/write any user document
-      allow read, write: if request.auth != null && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(request.auth.uid)).data.role == 'Admin';
+      // A user can read/write their own document.
+      // An admin/educator can read/write any user document.
+      allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.role in ['Admin', 'Educator']);
+      // An admin/educator can list all users.
+      allow list: if request.auth != null && request.auth.token.role in ['Admin', 'Educator'];
+
+      match /testHistory/{testId} {
+        // A user can read their own history. An admin/educator can read any history.
+        allow read: if request.auth != null && (request.auth.uid == userId || request.auth.token.role in ['Admin', 'Educator']);
+        // A user can only create their own test history.
+        allow create: if request.auth != null && request.auth.uid == userId;
+      }
     }
+
     // Allow anyone to read appSettings
     match /artifacts/{appId}/public/data/appSettings/{docId} {
       allow read;
@@ -14,7 +23,8 @@ service cloud.firestore {
 
     match /artifacts/{appId}/public/{document=**} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(request.auth.uid)).data.role in ['Admin', 'Creator'];
+      // Admins/Creators/Educators can write to public data.
+      allow write: if request.auth != null && request.auth.token.role in ['Admin', 'Creator', 'Educator'];
     }
   }
 }

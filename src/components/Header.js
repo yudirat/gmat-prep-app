@@ -15,6 +15,8 @@ const Header = () => {
     navigate('/');
   };
 
+  const isStudent = userProfile?.role === 'Student';
+
   return (
     <header className="bg-white shadow-md">
       <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
@@ -27,14 +29,23 @@ const Header = () => {
               {userProfile.displayName || user.email} ({userProfile.role})
             </span>
           )}
-          <Link to="/" className="text-indigo-600 hover:text-indigo-800 mr-4">Home</Link>
-          <Link to="/dashboard" className="text-indigo-600 hover:text-indigo-800 mr-4">Dashboard</Link>
-          {appSettings.isPracticeHubActive && (
+          {isStudent && (
+            <Link to="/" className="text-indigo-600 hover:text-indigo-800 mr-4">Home</Link>
+          )}
+          {userProfile?.role !== 'Admin' && (
+            <Link to="/dashboard" className="text-indigo-600 hover:text-indigo-800 mr-4">Dashboard</Link>
+          )}
+          {appSettings.isPracticeHubActive && userProfile?.role !== 'Admin' && (
             <Link to="/practice" className="text-indigo-600 hover:text-indigo-800 mr-4">Practice Hub</Link>
           )}
-          <Link to="/past-results" className="text-indigo-600 hover:text-indigo-800 mr-4">Past Results</Link>
+          {isStudent && (
+            <Link to="/past-results" className="text-indigo-600 hover:text-indigo-800 mr-4">Past Results</Link>
+          )}
           {(userProfile?.role === 'Admin' || userProfile?.role === 'Educator') && (
-            <Link to="/create" className="text-indigo-600 hover:text-indigo-800 mr-4">Create Content</Link>
+            <>
+              <Link to="/student-performance" className="text-indigo-600 hover:text-indigo-800 mr-4">Analytics</Link>
+              <Link to="/create" className="text-indigo-600 hover:text-indigo-800 mr-4">Create Content</Link>
+            </>
           )}
           {userProfile?.role === 'Admin' && (
             <Link to="/admin" className="text-indigo-600 hover:text-indigo-800 mr-4">Admin Panel</Link>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useUser } from './contexts/UserContext';
 import withAuthorization from './components/withAuthorization';
 import Layout from './components/Layout';
@@ -20,16 +20,33 @@ import MockGmatFlow from './features/Test/MockGmatFlow';
 import ResultsScreen from './features/Results/ResultsScreen';
 import PastResults from './features/Results/PastResults';
 import UserProfile from './features/Dashboard/UserProfile';
+import StudentPerformance from './features/Analytics/StudentPerformance';
+import StudentDetail from './features/Analytics/StudentDetail';
 
 const AdminDashboardWithAuth = withAuthorization(['Admin'])(AdminDashboard);
 const CreatorDashboardWithAuth = withAuthorization(['Admin', 'Educator'])(CreatorDashboard);
 const TestCreatorWithAuth = withAuthorization(['Admin', 'Educator'])(TestCreator);
 const QuestionBankManagerWithAuth = withAuthorization(['Admin', 'Educator'])(QuestionBankManager);
+const StudentPerformanceWithAuth = withAuthorization(['Admin', 'Educator'])(StudentPerformance);
+const StudentDetailWithAuth = withAuthorization(['Admin', 'Educator'])(StudentDetail);
 
 const AppRouter = () => {
   const { user, userProfile, isAuthReady } = useUser();
   const { questions, isLoading } = useData();
   
+  const renderDashboard = () => {
+    if (!userProfile) return null;
+    switch (userProfile.role) {
+      case 'Student':
+        return <StudentDashboard userProfile={userProfile} />;
+      case 'Admin':
+        return <Navigate to="/admin" replace />;
+      case 'Educator':
+        return <Navigate to="/student-performance" replace />;
+      default:
+        return <LoginScreen />;
+    }
+  };
 
   if (!isAuthReady || isLoading) {
     return <div className="flex items-center justify-center h-screen bg-gray-100"><div className="text-xl font-semibold text-gray-700">Loading App...</div></div>;
@@ -40,15 +57,19 @@ const AppRouter = () => {
         <Layout>
           <Routes>
             <Route path="/" element={<HomeScreen onStartTest={() => {}} onStartPractice={() => {}} onStartMock={() => {}} />} />
-            <Route path="/dashboard" element={<StudentDashboard userProfile={userProfile} />} />
+            <Route path="/dashboard" element={renderDashboard()} />
             <Route path="/admin" element={<AdminDashboardWithAuth />} />
             <Route path="/create" element={<CreatorDashboardWithAuth />} />
+            <Route path="/create-form" element={<TestCreatorWithAuth user={user} setView={() => {}} />} />
+            <Route path="/question-bank" element={<QuestionBankManagerWithAuth questions={questions} handleEditQuestion={() => {}} />} />
             <Route path="/practice" element={<PracticeHub allQuestions={questions} />} />
             <Route path="/take-test" element={<TestTaker onTestComplete={() => {}} testType="" />} />
             <Route path="/take-mock" element={<MockGmatFlow onMockComplete={() => {}} />} />
             <Route path="/results" element={<ResultsScreen />} />
             <Route path="/past-results" element={<PastResults />} />
             <Route path="/profile" element={<UserProfile />} />
+            <Route path="/student-performance" element={<StudentPerformanceWithAuth />} />
+            <Route path="/student-performance/:studentId" element={<StudentDetailWithAuth />} />
           </Routes>
         </Layout>
       ) : (

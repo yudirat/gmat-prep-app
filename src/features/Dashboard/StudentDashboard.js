@@ -86,9 +86,9 @@ export default function StudentDashboard({ userProfile }) {
         avgScore: Math.round(sectionDataForChart[name].totalScore / sectionDataForChart[name].count),
     }));
 
-    if (isLoading || loadingHistory || !userProfile || !appSettings) {
-        return <div>Loading dashboard...</div>;
-    }
+    if (isLoading || loadingHistory || !userProfile) {
+    return <div>Loading dashboard...</div>;
+}
 
     const isNewStudent = testHistory.length === 0 && Object.values(userProfile.testAttempts || {}).every(attempts => attempts === 0);
 

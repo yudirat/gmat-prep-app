@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { onSnapshot, collection, query } from 'firebase/firestore';
 import { db, appId } from '../../firebase';
 import { useUser } from '../../contexts/UserContext';
+import { useDataFromContext as useData } from '../../contexts/DataContext';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -10,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
  */
 export default function PastResults() {
     const { user } = useUser();
+    const { isLoading } = useData();
     const navigate = useNavigate();
     // State to store the test history and loading status
     const [history, setHistory] = useState([]);
@@ -32,7 +34,7 @@ export default function PastResults() {
         navigate('/results', { state: { results: result } });
     };
 
-    if (loading || !user) return <div>Loading past results...</div>;
+    if (loading || !user || isLoading) return <div>Loading past results...</div>;
 
     return (
         <div className="bg-white p-8 rounded-lg shadow-lg">
