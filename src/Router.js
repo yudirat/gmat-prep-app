@@ -1,9 +1,11 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useUser } from './contexts/UserContext';
 import withAuthorization from './components/withAuthorization';
 import Layout from './components/Layout';
 import useData from './hooks/useData';
+import { doc, getDoc } from 'firebase/firestore';
+import { db, appId } from './firebase';
 
 // Import components and features
 import LoginScreen from './features/Authentication/LoginScreen';
@@ -22,6 +24,8 @@ import PastResults from './features/Results/PastResults';
 import UserProfile from './features/Dashboard/UserProfile';
 import StudentPerformance from './features/Analytics/StudentPerformance';
 import StudentDetail from './features/Analytics/StudentDetail';
+import PracticeQuiz from './features/Practice/PracticeQuiz';
+import QuantMCQCreator from './features/Creator/QuantMCQCreator';
 
 const AdminDashboardWithAuth = withAuthorization(['Admin'])(AdminDashboard);
 const CreatorDashboardWithAuth = withAuthorization(['Admin', 'Creator', 'Educator'])(CreatorDashboard);
@@ -32,7 +36,7 @@ const StudentDetailWithAuth = withAuthorization(['Admin', 'Educator'])(StudentDe
 
 const AppRouter = () => {
   const { user, userProfile, isAuthReady } = useUser();
-  const { questions, isLoading } = useData();
+  const { isLoading } = useData();
   
   const renderDashboard = () => {
     if (!userProfile) return null;
@@ -61,10 +65,11 @@ const AppRouter = () => {
             <Route path="/admin" element={<AdminDashboardWithAuth />} />
             <Route path="/create" element={<CreatorDashboardWithAuth />} />
             <Route path="/create-form" element={<TestCreatorWithAuth user={user} setView={() => {}} />} />
-            <Route path="/question-bank" element={<QuestionBankManagerWithAuth questions={questions} handleEditQuestion={() => {}} />} />
-            <Route path="/practice" element={<PracticeHub allQuestions={questions} />} />
-            <Route path="/take-test" element={<TestTaker onTestComplete={() => {}} testType="" />} />
-            <Route path="/take-mock" element={<MockGmatFlow onMockComplete={() => {}} />} />
+            <Route path="/question-bank" element={<QuestionBankManagerWithAuth />} />
+            <Route path="/practice" element={<PracticeHub />} />
+            <Route path="/practice-quiz" element={<PracticeQuiz />} />
+            <Route path="/take-test" element={<Navigate to="/take-mock" replace />} />
+            <Route path="/take-mock" element={<MockGmatFlow />} />
             <Route path="/results" element={<ResultsScreen />} />
             <Route path="/past-results" element={<PastResults />} />
             <Route path="/profile" element={<UserProfile />} />

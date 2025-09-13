@@ -1,7 +1,8 @@
 // This component is used to create and edit Quantitative and Data Insights Multiple Choice Questions.
 import React, { useState, useEffect } from 'react';
-import { addDoc, collection, doc, updateDoc, Timestamp, setDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, updateDoc, Timestamp, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db, appId } from '../../firebase';
+import { GMAT_TOPICS } from '../../constants/gmatTopics';
 import QuestionSelectorModal from './QuestionSelectorModal';
 import QuestionPreviewModal from './QuestionPreviewModal';
 import BlockEditor from '../../components/BlockEditor';
@@ -11,7 +12,7 @@ import BlockEditor from '../../components/BlockEditor';
  */
 export default function QuantMCQCreator({ user, onSave, initialData = null, type = 'Quant', allQuestions }) {
     // State for question categories, text, options, and correct answer
-    const [quantCategories, setQuantCategories] = useState([]);
+    const [selectedTags, setSelectedTags] = useState([]);
     const [questionText, setQuestionText] = useState([{ type: 'text', value: '' }]);
     const [options, setOptions] = useState([[{type: 'text', value: ''}], [{type: 'text', value: ''}]]);
     const [isMultipleCorrect, setIsMultipleCorrect] = useState(false);
@@ -41,7 +42,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
                 return Array.isArray(content) ? content : [{ type: 'text', value: '' }];
             };
 
-            setQuantCategories(data.categories || []);
+            setSelectedTags(data.tags || []);
             setQuestionText(parseContent(data.questionText));
             setOptions((data.options || []).map(opt => parseContent(opt)));
             setIsMultipleCorrect(data.isMultipleCorrect || false);
@@ -127,13 +128,15 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
         }
     };
 
-    /**
-     * Handles changes to the quantitative categories.
-     * @param {string} category - The selected category.
-     */
-    const handleQuantCategoryChange = (category) => {
-        setQuantCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]);
+    const handleTagChange = (tag) => {
+        setSelectedTags(prevTags =>
+            prevTags.includes(tag)
+            ? prevTags.filter(t => t !== tag) // Deselect if already selected
+            : [...prevTags, tag] // Select if not already selected
+        );
     };
+
+    
     
     /**
      * Handles the selection of questions from the selector modal and creates copies.
@@ -155,6 +158,12 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
             return;
         }
 
+        if (type === 'Quant' && selectedTags.length === 0) {
+            alert('Please select at least one tag for the question.');
+            setIsSubmitting(false);
+            return;
+        }
+
         const questionData = {
             creatorId: user.uid,
             type: type,
@@ -164,13 +173,28 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
             options: options.map(optionContent => JSON.stringify(optionContent)), 
             correctAnswer: isMultipleCorrect ? correctAnswer : correctAnswer[0],
             isMultipleCorrect,
-            categories: type === 'Quant' ? quantCategories : [],
+            tags: selectedTags,
         };
 
         try {
             if (initialData) {
                 const questionRef = doc(db, `artifacts/${appId}/public/data/questions`, initialData.id);
+                const versionsRef = collection(questionRef, 'versions');
+
+                // 1. Get the current state of the question before we overwrite it
+                const currentDoc = await getDoc(questionRef);
+                const currentData = currentDoc.data();
+
+                // 2. Save the current state as a historical version
+                await addDoc(versionsRef, {
+                    ...currentData,
+                    editedAt: serverTimestamp(),
+                    editorId: user.uid // Assume user context is available
+                });
+
+                // 3. Now, update the main document with the new data
                 await updateDoc(questionRef, questionData);
+                
                 onSave("Question updated successfully!");
             } else {
                 await addDoc(collection(db, `artifacts/${appId}/public/data/questions`), questionData);
@@ -194,7 +218,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
         correctAnswer,
         difficulty,
         type,
-        categories: type === 'Quant' ? quantCategories : [],
+        tags: selectedTags,
         isMultipleCorrect
     });
 
@@ -229,15 +253,29 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
 
                 {/* Category selection for Quantitative questions */}
                 {type === 'Quant' && 
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Categories</label>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {quantCategoryOptions.map(cat => (
-                                <label key={cat} className="flex items-center space-x-2">
-                                    <input type="checkbox" checked={quantCategories.includes(cat)} onChange={() => handleQuantCategoryChange(cat)} className="rounded text-indigo-600 focus:ring-indigo-500"/>
-                                    <span>{cat}</span>
-                                </label>
-                            ))}
+                    <div className="mt-6">
+                        <label className="block text-gray-700 text-lg font-bold mb-2">
+                          Question Topics & Tags
+                        </label>
+                        <div className="space-y-4">
+                          {Object.entries(GMAT_TOPICS.Quantitative).map(([category, tags]) => (
+                            <div key={category}>
+                              <h4 className="font-semibold text-md text-gray-600 border-b pb-1 mb-2">{category}</h4>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                {tags.map(tag => (
+                                  <label key={tag} className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedTags.includes(tag)}
+                                      onChange={() => handleTagChange(tag)}
+                                      className="form-checkbox h-4 w-4 text-blue-600"
+                                    />
+                                    <span className="text-sm text-gray-700">{tag}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                     </div>
                 }

@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useUser } from '../../contexts/UserContext';
 import { useDataFromContext as useData } from '../../contexts/DataContext';
 import { useNavigate } from 'react-router-dom';
+import PracticeHistory from './PracticeHistory';
 
 /**
  * StudentDashboard component displays a student's overall performance, test history, and test attempt limits.
@@ -214,6 +215,7 @@ export default function StudentDashboard({ userProfile }) {
                     ))}
                 </div>np
             </div>
+            <PracticeHistory />
         </div>
     );
 }

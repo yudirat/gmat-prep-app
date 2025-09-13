@@ -1,65 +1,50 @@
+// src/features/Test/MockGmatFlow.js - (Updated Code)
 import React, { useState } from 'react';
+import useData from '../../hooks/useData'; // Import the hook
 import TestTaker from './TestTaker';
-import { calculateTotalScore } from '../../utils';
-import useData from '../../hooks/useData';
+import ResultsScreen from '../Results/ResultsScreen';
 
-/**
- * Component to manage the flow of a full mock GMAT exam.
- * It presents each section (Quant, Verbal, Data Insights) sequentially and calculates the final score.
- */
-export default function MockGmatFlow({ onMockComplete }) {
-    const { isLoading } = useData();
-    // State to track the current section and store results of completed sections
-    const [currentSection, setCurrentSection] = useState(0);
-    const [sectionResults, setSectionResults] = useState([]);
-    // Define the order of sections in the mock exam
-    const sections = ['Quant', 'Verbal', 'Data Insights'];
+const MockGmatFlow = () => {
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [testResults, setTestResults] = useState([]);
+  const { data: allQuestions, loading, error } = useCollectionData('questions'); // Fetch all questions
 
-    /**
-     * Handles the completion of a single section of the mock test.
-     * Stores the results and either moves to the next section or calculates the final mock score.
-     * @param {object} results - The results object for the completed section.
-     */
-    const handleSectionComplete = (results) => {
-        const newResults = [...sectionResults, results];
-        setSectionResults(newResults);
-        if (currentSection < sections.length - 1) {
-            setCurrentSection(currentSection + 1);
-        } else {
-            // Mock test is complete, calculate final score
-            const quantScore = newResults.find(r => r.testType === 'Quant')?.score || 60;
-            const verbalScore = newResults.find(r => r.testType === 'Verbal')?.score || 60;
-            const diScore = newResults.find(r => r.testType === 'Data Insights')?.score || 60;
-            
-            // Simplified total score calculation
-            const totalScore = calculateTotalScore(quantScore, verbalScore, diScore);
+  const sections = ['Quantitative', 'Verbal', 'Data Insights'];
 
-            onMockComplete({
-                testType: 'Full Mock Exam',
-                score: totalScore,
-                sections: newResults,
-                timeTaken: newResults.reduce((acc, r) => acc + r.timeTaken, 0)
-            });
-        }
-    };
-    
-    if (isLoading) {
-        return <div>Loading questions...</div>;
+  const handleFinishSection = (results) => {
+    setTestResults(prev => [...prev, { section: sections[currentSectionIndex], results }]);
+    if (currentSectionIndex < sections.length - 1) {
+      setCurrentSectionIndex(currentSectionIndex + 1);
+    } else {
+      // Mark the test as finished
+      setCurrentSectionIndex(-1); // Use -1 to indicate completion
     }
+  };
 
-    // Display a message while calculating the final score after all sections are done
-    if (currentSection >= sections.length) {
-        return <div>Calculating final score...</div>
-    }
+  if (loading) {
+    return <div>Loading questions, please wait...</div>;
+  }
 
-    return (
-        <div>
-            {/* Render the TestTaker component for the current section */}
-            <TestTaker 
-                key={sections[currentSection]} // Key ensures component remounts for each section
-                onTestComplete={handleSectionComplete}
-                testType={sections[currentSection]}
-            />
-        </div>
-    );
-}
+  if (error) {
+    return <div>Error loading questions: {error.message}</div>;
+  }
+
+  // If the test is finished, show the results screen
+  if (currentSectionIndex === -1) {
+    return <ResultsScreen results={testResults} />;
+  }
+
+  return (
+    <div>
+      <h2>{sections[currentSectionIndex]} Section</h2>
+      <TestTaker
+        key={currentSectionIndex} // Use key to re-mount the component for each section
+        section={sections[currentSectionIndex]}
+        onFinishSection={handleFinishSection}
+        allQuestions={allQuestions} // Pass all questions down as a prop
+      />
+    </div>
+  );
+};
+
+export default MockGmatFlow;

@@ -90,3 +90,7 @@ export const calculateTotalScore = (quantScore, verbalScore, diScore) => {
     });
     return closest.totalScore;
 };
+
+export const getQuestionsBySection = (section, allQuestions) => {
+  return allQuestions.filter(q => q.section === section);
+};
