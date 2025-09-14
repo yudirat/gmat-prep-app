@@ -1,6 +1,5 @@
-// src/features/Test/MockGmatFlow.js - (Updated Code)
 import React, { useState } from 'react';
-import useData from '../../hooks/useData'; // Import the hook
+import useCollectionData from '../../hooks/useCollectionData';
 import TestTaker from './TestTaker';
 import ResultsScreen from '../Results/ResultsScreen';
 

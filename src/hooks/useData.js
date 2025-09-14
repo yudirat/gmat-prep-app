@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, appId } from '../firebase';
 import { useUser } from '../contexts/UserContext';
+import { validateQuestionData } from '../utils'; // Assuming you move validation logic to a utils file
 
 const useData = () => {
   const { isAuthReady, user } = useUser();
@@ -84,41 +85,60 @@ const useData = () => {
               if (!snapshot) {
                 throw new Error(`No snapshot received for ${name}`);
               }
-              
-              const data = snapshot.docs.map((doc) => {
-                if (!doc) {
-                  throw new Error(`Invalid document in ${name} snapshot`);
-                }
-                const docData = doc.data();
-                if (!docData) {
-                  throw new Error(`Empty document data for ID: ${doc.id} in ${name}`);
-                }
-                return { id: doc.id, ...docData };
-              });
 
-              // Validate required fields based on collection type
-              data.forEach(item => {
-                switch(name) {
-                  case 'questions':
-                    if (!item.type || !item.content) {
-                      throw new Error(`Invalid question data for ID: ${item.id}`);
-                    }
-                    break;
-                  case 'passages':
-                    if (!item.text) {
-                      throw new Error(`Invalid passage data for ID: ${item.id}`);
-                    }
-                    break;
-                  case 'msrSets':
-                    if (!Array.isArray(item.statements)) {
-                      throw new Error(`Invalid MSR set data for ID: ${item.id}`);
-                    }
-                    break;
-                  // Add validations for other collection types as needed
-                }
-              });
-              
-              setState(data);
+              if (name === 'questions') {
+                const questionsData = [];
+                snapshot.docs.forEach(doc => {
+                  const data = doc.data();
+                  
+                  // --- Defensive Data Handling ---
+                  // Provide default values for potentially missing fields in older documents
+                  const processedData = {
+                    ...data,
+                    creationDate: data.creationDate?.toDate ? data.creationDate.toDate() : new Date(),
+                    lastModified: data.lastModified?.toDate ? data.lastModified.toDate() : new Date(),
+                    usageCount: typeof data.usageCount === 'number' ? data.usageCount : 0,
+                  };
+
+                  if (validateQuestionData(processedData)) {
+                    questionsData.push({ id: doc.id, ...processedData });
+                  } else {
+                    // This will now only log for truly malformed data
+                    console.error(`Skipping invalid question data for ID: ${doc.id}`);
+                  }
+                });
+                setState(questionsData);
+              } else {
+                const data = snapshot.docs.map((doc) => {
+                  if (!doc) {
+                    throw new Error(`Invalid document in ${name} snapshot`);
+                  }
+                  const docData = doc.data();
+                  if (!docData) {
+                    throw new Error(`Empty document data for ID: ${doc.id} in ${name}`);
+                  }
+                  return { id: doc.id, ...docData };
+                });
+
+                // Validate required fields for other collections
+                data.forEach(item => {
+                  switch(name) {
+                    case 'passages':
+                      if (!item.text) {
+                        throw new Error(`Invalid passage data for ID: ${item.id}`);
+                      }
+                      break;
+                    case 'msrSets':
+                      if (!Array.isArray(item.statements)) {
+                        throw new Error(`Invalid MSR set data for ID: ${item.id}`);
+                      }
+                      break;
+                    // Add validations for other collection types as needed
+                  }
+                });
+                
+                setState(data);
+              }
               resolve();
             } catch (error) {
               console.error(`Error processing ${name} data:`, error);

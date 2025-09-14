@@ -41,9 +41,11 @@ const useCollectionData = (collectionName) => {
     setLoading(true);
     setError(null); // Reset error state when retrying
 
+    let unsubscribe; // Declare unsubscribe here
+
     try {
       const q = query(collection(db, `artifacts/${appId}/public/data/${collectionName}`));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      unsubscribe = onSnapshot(q, (snapshot) => { // Assign the listener to the unsubscribe variable
         try {
           if (!snapshot) {
             throw new Error('No snapshot received');
@@ -82,7 +84,6 @@ const useCollectionData = (collectionName) => {
         setLoading(false);
       });
       
-      return unsubscribe;
     } catch (err) {
       console.error(`Error setting up ${collectionName} listener:`, err);
       setError({
@@ -91,11 +92,12 @@ const useCollectionData = (collectionName) => {
         details: err.message
       });
       setLoading(false);
-      return () => {}; // Return empty cleanup function
     }
 
     return () => {
-      unsubscribe();
+      if (unsubscribe) { // The cleanup function now correctly closes the listener
+        unsubscribe();
+      }
     };
   }, [isAuthReady, user, collectionName, db, appId]);
 

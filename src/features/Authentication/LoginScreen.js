@@ -23,13 +23,45 @@ export default function LoginScreen() {
         e.preventDefault();
         setLoading(true);
         setError(''); // Clear previous errors
+        
         try {
+            if (!auth) {
+                throw new Error('Authentication service is not initialized');
+            }
+
+            if (!email || !password) {
+                throw new Error('Please enter both email and password');
+            }
+
             await signInWithEmailAndPassword(auth, email, password);
         } catch (err) {
-            setError('Failed to log in. Please check your email and password.');
-            console.error(err);
+            console.error('Login error:', err);
+            
+            // Handle specific Firebase Auth errors
+            switch (err.code) {
+                case 'auth/invalid-email':
+                    setError('Invalid email address format.');
+                    break;
+                case 'auth/user-disabled':
+                    setError('This account has been disabled.');
+                    break;
+                case 'auth/user-not-found':
+                    setError('No account found with this email.');
+                    break;
+                case 'auth/wrong-password':
+                    setError('Incorrect password.');
+                    break;
+                case 'auth/network-request-failed':
+                    setError(process.env.NODE_ENV === 'development' 
+                        ? 'Connection to authentication service failed. Make sure the Firebase emulator is running (firebase emulators:start).'
+                        : 'Network connection error. Please check your internet connection.');
+                    break;
+                default:
+                    setError(err.message || 'Failed to log in. Please try again.');
+            }
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (

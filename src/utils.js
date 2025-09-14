@@ -94,3 +94,17 @@ export const calculateTotalScore = (quantScore, verbalScore, diScore) => {
 export const getQuestionsBySection = (section, allQuestions) => {
   return allQuestions.filter(q => q.section === section);
 };
+
+/**
+ * Validates the essential fields of a question object.
+ * @param {object} question - The question object to validate.
+ * @returns {boolean} True if the question is valid, false otherwise.
+ */
+export const validateQuestionData = (question) => {
+  if (!question || typeof question.type !== 'string' || typeof question.content !== 'object') {
+    console.error('Invalid question data structure:', question);
+    return false;
+  }
+  // Add more checks as needed, e.g., for specific properties within content
+  return true;
+};

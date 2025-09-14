@@ -2,9 +2,15 @@
 
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { 
+  initializeFirestore, 
+  connectFirestoreEmulator,
+  persistentLocalCache,
+  persistentSingleTabManager,
+  CACHE_SIZE_UNLIMITED
+} from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
-import { enableIndexedDbPersistence } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 /**
  * Validates the Firebase configuration object
@@ -48,6 +54,7 @@ let app;
 let auth;
 let db;
 let functions;
+let storage;
 let appId;
 
 try {
@@ -63,33 +70,26 @@ try {
     app = getApps()[0];
   }
 
-  // Initialize Firebase services with error handling
+  // Initialize Firestore with persistence configuration
   try {
-    auth = getAuth(app);
-  } catch (error) {
-    console.error('Failed to initialize Firebase Auth:', error);
-    throw error;
-  }
-
-  try {
-    db = getFirestore(app);
-    // Enable offline persistence
-    enableIndexedDbPersistence(db).catch((err) => {
-      if (err.code === 'failed-precondition') {
-        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-      } else if (err.code === 'unimplemented') {
-        console.warn('The current browser does not support offline persistence.');
-      }
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+        tabManager: persistentSingleTabManager()  // Note: this needs to be called as a function
+      })
     });
   } catch (error) {
     console.error('Failed to initialize Firestore:', error);
     throw error;
   }
 
+  // Initialize other Firebase services
   try {
+    auth = getAuth(app);
     functions = getFunctions(app);
+    storage = getStorage(app);
   } catch (error) {
-    console.error('Failed to initialize Firebase Functions:', error);
+    console.error('Failed to initialize Firebase services:', error);
     throw error;
   }
 
@@ -97,14 +97,76 @@ try {
   appId = firebaseConfig.projectId;
 
   // Connect to emulators in development environment
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      connectAuthEmulator(auth, 'http://localhost:9099');
-      connectFirestoreEmulator(db, 'localhost', 8080);
-      connectFunctionsEmulator(functions, 'localhost', 5001);
-    } catch (error) {
-      console.warn('Failed to connect to Firebase emulators:', error);
-    }
+  // Only attempt to use emulators if explicitly enabled
+  const useEmulators = process.env.REACT_APP_USE_EMULATORS === 'true';
+  
+  if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost' && useEmulators) {
+    const checkEmulatorAvailability = async (host, port) => {
+      try {
+        const response = await fetch(`http://${host}:${port}`);
+        return response.status !== 404; // Any response except 404 means emulator is running
+      } catch {
+        return false;
+      }
+    };
+
+    const connectEmulators = async () => {
+      try {
+        console.log('Checking Firebase Emulators availability...');
+        
+        // Display Java requirement message
+        console.info(`
+          Firebase Emulators require Java to be installed.
+          1. Download and install Java from: https://adoptium.net/
+          2. Add Java to your system PATH
+          3. Restart your terminal/IDE
+          4. Run 'java -version' to verify installation
+        `);
+
+        // Check auth emulator
+        const authAvailable = await checkEmulatorAvailability('localhost', 9099);
+        if (authAvailable) {
+          connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+          console.log('Connected to Auth Emulator');
+        } else {
+          console.warn('Auth Emulator not available. Run: firebase emulators:start');
+        }
+
+        // Check Firestore emulator
+        const firestoreAvailable = await checkEmulatorAvailability('localhost', 8080);
+        if (firestoreAvailable) {
+          connectFirestoreEmulator(db, 'localhost', 8080);
+          console.log('Connected to Firestore Emulator');
+        } else {
+          console.warn('Firestore Emulator not available');
+        }
+
+        // Check Functions emulator
+        const functionsAvailable = await checkEmulatorAvailability('localhost', 5001);
+        if (functionsAvailable) {
+          connectFunctionsEmulator(functions, 'localhost', 5001);
+          console.log('Connected to Functions Emulator');
+        } else {
+          console.warn('Functions Emulator not available');
+        }
+
+        // Check Storage emulator
+        const storageAvailable = await checkEmulatorAvailability('localhost', 9199);
+        if (storageAvailable) {
+          connectStorageEmulator(storage, 'localhost', 9199);
+          console.log('Connected to Storage Emulator');
+        } else {
+          console.warn('Storage Emulator not available');
+        }
+
+      } catch (error) {
+        console.warn('Error connecting to emulators:', error);
+        console.warn('To use emulators, run: firebase emulators:start');
+      }
+    };
+
+    // Initialize emulator connections
+    connectEmulators().catch(console.error);
   }
 } catch (error) {
   console.error('Failed to initialize Firebase:', error);
@@ -117,4 +179,4 @@ const isInitialized = () => {
 };
 
 // Export the initialized services and config for use throughout the application
-export { auth, db, functions, appId, firebaseConfig, isInitialized };
+export { auth, db, functions, storage, appId, firebaseConfig };
