@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, deleteDoc, doc, writeBatch, addDoc, updateDoc, arrayUnion } from 'firebase/firestore'; // 1. Import updateDoc
-import { db } from '../../firebase';
+import { db, appId } from '../../firebase'; // Correctly import appId
 import { GMAT_TOPICS } from '../../constants/gmatTopics';
 import BulkDifficultyModal from '../../components/BulkDifficultyModal';
 import BulkAddTagsModal from '../../components/BulkAddTagsModal'; // 2. Import the new modal
@@ -28,7 +28,7 @@ const QuestionBankManager = () => {
     const fetchData = async () => {
       setLoading(true);
       // Fetch questions
-      const qSnapshot = await getDocs(collection(db, 'questions'));
+      const qSnapshot = await getDocs(collection(db, `artifacts/${appId}/public/data/questions`));
       const questionsData = qSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setQuestions(questionsData);
 

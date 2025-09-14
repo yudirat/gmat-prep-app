@@ -16,6 +16,7 @@ const useData = () => {
     isSectionalTestActive: true,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!isAuthReady || !user) {
@@ -28,6 +29,8 @@ const useData = () => {
     const unsubscribes = [];
 
     const setupDataListeners = async () => {
+      setError(null); // Reset error state at the start
+      
       // 1. Handle appSettings first to ensure it exists
       const settingsDocRef = doc(db, `artifacts/${appId}/public/data/appSettings/config`);
       try {
@@ -46,6 +49,11 @@ const useData = () => {
         }
       } catch (error) {
         console.error("Error ensuring appSettings exist:", error);
+        setError({
+          type: 'settings',
+          message: 'Failed to load application settings',
+          details: error.message
+        });
       }
 
       // Now set up the real-time listener for appSettings
@@ -70,22 +78,83 @@ const useData = () => {
       const promises = [];
       collectionsToFetch.forEach(({ name, setState }) => {
         const q = query(collection(db, `artifacts/${appId}/public/data/${name}`));
-        const promise = new Promise(resolve => {
+        const promise = new Promise((resolve, reject) => {
           const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-            setState(data);
-            resolve();
+            try {
+              if (!snapshot) {
+                throw new Error(`No snapshot received for ${name}`);
+              }
+              
+              const data = snapshot.docs.map((doc) => {
+                if (!doc) {
+                  throw new Error(`Invalid document in ${name} snapshot`);
+                }
+                const docData = doc.data();
+                if (!docData) {
+                  throw new Error(`Empty document data for ID: ${doc.id} in ${name}`);
+                }
+                return { id: doc.id, ...docData };
+              });
+
+              // Validate required fields based on collection type
+              data.forEach(item => {
+                switch(name) {
+                  case 'questions':
+                    if (!item.type || !item.content) {
+                      throw new Error(`Invalid question data for ID: ${item.id}`);
+                    }
+                    break;
+                  case 'passages':
+                    if (!item.text) {
+                      throw new Error(`Invalid passage data for ID: ${item.id}`);
+                    }
+                    break;
+                  case 'msrSets':
+                    if (!Array.isArray(item.statements)) {
+                      throw new Error(`Invalid MSR set data for ID: ${item.id}`);
+                    }
+                    break;
+                  // Add validations for other collection types as needed
+                }
+              });
+              
+              setState(data);
+              resolve();
+            } catch (error) {
+              console.error(`Error processing ${name} data:`, error);
+              setError({
+                type: 'data',
+                message: `Failed to process ${name} data`,
+                details: error.message
+              });
+              reject(error);
+            }
           }, (error) => {
             console.error(`Error fetching ${name}:`, error);
-            resolve();
+            setError({
+              type: 'collection',
+              message: `Failed to load ${name} data`,
+              details: error.message
+            });
+            reject(error);
           });
           unsubscribes.push(unsubscribe);
         });
         promises.push(promise);
       });
 
-      await Promise.all(promises);
-      setIsLoading(false);
+      try {
+        await Promise.all(promises);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setError({
+          type: 'general',
+          message: 'Failed to load some application data',
+          details: error.message
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     setupDataListeners();
@@ -93,9 +162,9 @@ const useData = () => {
     return () => {
       unsubscribes.forEach((unsub) => unsub());
     };
-  }, [isAuthReady, user]);
+  }, [isAuthReady, user, db, appId]);
 
-  return { questions, passages, msrSets, graphicStimuli, tableStimuli, appSettings, isLoading };
+  return { questions, passages, msrSets, graphicStimuli, tableStimuli, appSettings, isLoading, error };
 };
 
 export default useData;

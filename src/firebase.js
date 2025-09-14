@@ -1,16 +1,41 @@
 // This file initializes and exports Firebase services for the application.
 
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getFunctions } from 'firebase/functions';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { enableIndexedDbPersistence } from 'firebase/firestore';
+
+/**
+ * Validates the Firebase configuration object
+ * @param {Object} config - Firebase configuration object
+ * @returns {boolean} - Whether the configuration is valid
+ */
+const validateFirebaseConfig = (config) => {
+  const requiredFields = [
+    'apiKey',
+    'authDomain',
+    'projectId',
+    'storageBucket',
+    'messagingSenderId',
+    'appId'
+  ];
+
+  return requiredFields.every(field => {
+    if (!config[field]) {
+      console.error(`Missing required Firebase config field: ${field}`);
+      return false;
+    }
+    return true;
+  });
+};
 
 /**
  * Firebase configuration object.
  * These values are typically obtained from your Firebase project settings.
  */
 const firebaseConfig = {
-    apiKey: "AIzaSyA99On_n6-sp23bn7Nzd4Vv4FpQt47HnY4",
+  apiKey: "AIzaSyA99On_n6-sp23bn7Nzd4Vv4FpQt47HnY4",
   authDomain: "gmat-focus.firebaseapp.com",
   projectId: "gmat-focus",
   storageBucket: "gmat-focus.firebasestorage.app",
@@ -19,20 +44,77 @@ const firebaseConfig = {
   measurementId: "G-H1280NBNJF"
 };
 
-// Initialize Firebase application
-const app = initializeApp(firebaseConfig);
+let app;
+let auth;
+let db;
+let functions;
+let appId;
 
-// Get Firebase Authentication instance
-const auth = getAuth(app);
+try {
+  // Validate configuration
+  if (!validateFirebaseConfig(firebaseConfig)) {
+    throw new Error('Invalid Firebase configuration');
+  }
 
-// Get Firebase Firestore instance
-const db = getFirestore(app);
+  // Initialize Firebase only if it hasn't been initialized already
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
 
-// Get Firebase Functions instance
-const functions = getFunctions(app);
+  // Initialize Firebase services with error handling
+  try {
+    auth = getAuth(app);
+  } catch (error) {
+    console.error('Failed to initialize Firebase Auth:', error);
+    throw error;
+  }
 
-// Define an application ID, useful for multi-tenant Firestore structures
-const appId = firebaseConfig.projectId;
+  try {
+    db = getFirestore(app);
+    // Enable offline persistence
+    enableIndexedDbPersistence(db).catch((err) => {
+      if (err.code === 'failed-precondition') {
+        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+      } else if (err.code === 'unimplemented') {
+        console.warn('The current browser does not support offline persistence.');
+      }
+    });
+  } catch (error) {
+    console.error('Failed to initialize Firestore:', error);
+    throw error;
+  }
+
+  try {
+    functions = getFunctions(app);
+  } catch (error) {
+    console.error('Failed to initialize Firebase Functions:', error);
+    throw error;
+  }
+
+  // Define application ID
+  appId = firebaseConfig.projectId;
+
+  // Connect to emulators in development environment
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      connectAuthEmulator(auth, 'http://localhost:9099');
+      connectFirestoreEmulator(db, 'localhost', 8080);
+      connectFunctionsEmulator(functions, 'localhost', 5001);
+    } catch (error) {
+      console.warn('Failed to connect to Firebase emulators:', error);
+    }
+  }
+} catch (error) {
+  console.error('Failed to initialize Firebase:', error);
+  throw new Error('Firebase initialization failed. Please check your configuration and try again.');
+}
+
+// Helper function to check if Firebase is initialized
+const isInitialized = () => {
+  return !!(app && auth && db && functions && appId);
+};
 
 // Export the initialized services and config for use throughout the application
-export { auth, db, functions, appId, firebaseConfig };
+export { auth, db, functions, appId, firebaseConfig, isInitialized };

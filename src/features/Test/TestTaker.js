@@ -19,31 +19,76 @@ const TestTaker = ({ section, onFinishSection, allQuestions }) => {
   }, [allQuestions, section]);
 
 
+  // Function to validate a question's structure
+  const isValidQuestion = useCallback((question) => {
+    return question &&
+           typeof question === 'object' &&
+           'id' in question &&
+           'difficulty' in question &&
+           typeof question.difficulty === 'number' &&
+           question.difficulty >= 1 &&
+           question.difficulty <= 5 &&
+           'section' in question &&
+           typeof question.section === 'string';
+  }, []);
+
   // Function to select the next adaptive question
   const getNextAdaptiveQuestion = useCallback((difficulty) => {
+    if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 5) {
+      console.error('Invalid difficulty value:', difficulty);
+      difficulty = 3; // Fall back to medium difficulty
+    }
+
     let difficultyToTry = difficulty;
     let attempts = 0;
+    const maxAttempts = 5;
+    const seenDifficulties = new Set();
 
-    while (attempts < 5) { // Try 5 times to find a question (up/down difficulty)
-        const potentialQuestions = sectionQuestions.filter(
-            (q) => q.difficulty === difficultyToTry && !answeredQuestionIds.has(q.id)
-        );
+    while (attempts < maxAttempts) {
+      if (!Array.isArray(sectionQuestions)) {
+        console.error('Invalid sectionQuestions:', sectionQuestions);
+        return null;
+      }
 
-        if (potentialQuestions.length > 0) {
-            const randomIndex = Math.floor(Math.random() * potentialQuestions.length);
-            return potentialQuestions[randomIndex];
+      const potentialQuestions = sectionQuestions.filter(q => 
+        isValidQuestion(q) &&
+        q.difficulty === difficultyToTry && 
+        !answeredQuestionIds.has(q.id)
+      );
+
+      if (potentialQuestions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * potentialQuestions.length);
+        const selectedQuestion = potentialQuestions[randomIndex];
+        
+        // Final validation of selected question
+        if (!isValidQuestion(selectedQuestion)) {
+          console.error('Selected question failed validation:', selectedQuestion);
+          continue;
         }
+        
+        return selectedQuestion;
+      }
 
-        // Fallback logic: if no questions found, try a different difficulty
-        if (attempts % 2 === 0) {
-            difficultyToTry = Math.max(1, difficultyToTry - (attempts + 1));
-        } else {
-            difficultyToTry = Math.min(5, difficultyToTry + (attempts + 1));
-        }
-        attempts++;
+      seenDifficulties.add(difficultyToTry);
+
+      // Smarter fallback logic
+      const availableDifficulties = [1, 2, 3, 4, 5].filter(d => !seenDifficulties.has(d));
+      if (availableDifficulties.length === 0) {
+        console.warn('No more difficulties to try');
+        break;
+      }
+
+      // Find the closest available difficulty
+      difficultyToTry = availableDifficulties.reduce((closest, current) => 
+        Math.abs(current - difficulty) < Math.abs(closest - difficulty) ? current : closest
+      );
+      
+      attempts++;
     }
-    return null; // Return null if no suitable question is found after fallbacks
-  }, [sectionQuestions, answeredQuestionIds]);
+
+    console.warn(`Failed to find question after ${maxAttempts} attempts`);
+    return null;
+  }, [sectionQuestions, answeredQuestionIds, isValidQuestion]);
 
 
   // Set the initial question when the component mounts
@@ -57,23 +102,57 @@ const TestTaker = ({ section, onFinishSection, allQuestions }) => {
     }
   }, [sectionQuestions, getNextAdaptiveQuestion]);
 
-  const calculateScore = (finalAnswers) => {
-      if(finalAnswers.length === 0) return 60;
-      
-      const rawScore = finalAnswers
-          .filter(a => a.isCorrect)
-          .reduce((sum, a) => sum + a.difficulty, 0);
+  const calculateScore = useCallback((finalAnswers) => {
+    if (!Array.isArray(finalAnswers)) {
+      console.error('Invalid finalAnswers:', finalAnswers);
+      return 60; // Default score for invalid input
+    }
 
-      const maxRawScore = finalAnswers
-          .reduce((sum, a) => sum + a.difficulty, 0);
-      
-      if (maxRawScore === 0) return 60;
+    if (finalAnswers.length === 0) {
+      console.warn('No answers provided for scoring');
+      return 60;
+    }
+
+    try {
+      // Validate each answer before processing
+      const validAnswers = finalAnswers.filter(answer => 
+        answer &&
+        typeof answer === 'object' &&
+        'isCorrect' in answer &&
+        typeof answer.isCorrect === 'boolean' &&
+        'difficulty' in answer &&
+        typeof answer.difficulty === 'number' &&
+        answer.difficulty >= 1 &&
+        answer.difficulty <= 5
+      );
+
+      if (validAnswers.length === 0) {
+        console.error('No valid answers found in:', finalAnswers);
+        return 60;
+      }
+
+      const rawScore = validAnswers
+        .filter(a => a.isCorrect)
+        .reduce((sum, a) => sum + a.difficulty, 0);
+
+      const maxRawScore = validAnswers
+        .reduce((sum, a) => sum + a.difficulty, 0);
+
+      if (maxRawScore === 0) {
+        console.warn('All answers have zero difficulty');
+        return 60;
+      }
 
       const percentageScore = rawScore / maxRawScore;
       const scaledScore = Math.round(60 + (percentageScore * 30));
 
-      return scaledScore;
-  };
+      // Ensure score is within valid range
+      return Math.max(60, Math.min(90, scaledScore));
+    } catch (error) {
+      console.error('Error calculating score:', error);
+      return 60;
+    }
+  }, []);
 
   const endSection = useCallback((finalAnswers) => {
       if (!isTestStarted) return;
@@ -94,36 +173,67 @@ const TestTaker = ({ section, onFinishSection, allQuestions }) => {
   }, [isTestStarted, timeLeft, endSection, answeredQuestions]);
 
 
-  const handleAnswerSubmit = (isCorrect) => {
-    // 1. Update difficulty based on the answer
-    const nextDifficulty = isCorrect
-      ? Math.min(5, currentDifficulty + 1) // Increase difficulty, max 5
-      : Math.max(1, currentDifficulty - 1); // Decrease difficulty, min 1
-    setCurrentDifficulty(nextDifficulty);
-
-    // 2. Record the answered question
-    const newAnsweredQuestions = [...answeredQuestions, { ...currentQuestion, answeredCorrectly: isCorrect }];
-    setAnsweredQuestions(newAnsweredQuestions);
-
-
-    // 3. Check if the section is complete (e.g., based on a fixed number of questions)
-    if (newAnsweredQuestions.length >= getSectionQuestionCount(section)) { // Assuming a utility function
-      endSection(newAnsweredQuestions);
+  const handleAnswerSubmit = useCallback((isCorrect) => {
+    if (typeof isCorrect !== 'boolean') {
+      console.error('Invalid answer submission:', isCorrect);
       return;
     }
 
-
-    // 4. Find and set the next question
-    const nextQuestion = getNextAdaptiveQuestion(nextDifficulty);
-    setCurrentQuestion(nextQuestion);
-
-    if(nextQuestion) {
-        setAnsweredQuestionIds(prevIds => new Set(prevIds).add(nextQuestion.id));
-    } else {
-        // Handle case where there are no more questions to serve
-        endSection(newAnsweredQuestions);
+    if (!currentQuestion) {
+      console.error('No current question to answer');
+      return;
     }
-  };
+
+    try {
+      // 1. Update difficulty based on the answer
+      const nextDifficulty = isCorrect
+        ? Math.min(5, currentDifficulty + 1) // Increase difficulty, max 5
+        : Math.max(1, currentDifficulty - 1); // Decrease difficulty, min 1
+      setCurrentDifficulty(nextDifficulty);
+
+      // 2. Record the answered question with validation
+      const answeredQuestion = {
+        ...currentQuestion,
+        answeredCorrectly: isCorrect,
+        answeredAt: new Date().toISOString()
+      };
+
+      const newAnsweredQuestions = [...answeredQuestions, answeredQuestion];
+      setAnsweredQuestions(newAnsweredQuestions);
+
+      // 3. Check if the section is complete
+      const requiredQuestionCount = getSectionQuestionCount(section);
+      if (!requiredQuestionCount) {
+        console.error('Invalid section:', section);
+        endSection(newAnsweredQuestions);
+        return;
+      }
+
+      if (newAnsweredQuestions.length >= requiredQuestionCount) {
+        endSection(newAnsweredQuestions);
+        return;
+      }
+
+      // 4. Find and set the next question
+      const nextQuestion = getNextAdaptiveQuestion(nextDifficulty);
+      
+      if (nextQuestion) {
+        if (!nextQuestion.id) {
+          console.error('Next question missing ID:', nextQuestion);
+          endSection(newAnsweredQuestions);
+          return;
+        }
+        setCurrentQuestion(nextQuestion);
+        setAnsweredQuestionIds(prevIds => new Set([...prevIds, nextQuestion.id]));
+      } else {
+        console.warn('No more questions available');
+        endSection(newAnsweredQuestions);
+      }
+    } catch (error) {
+      console.error('Error handling answer submission:', error);
+      endSection(answeredQuestions); // End section with existing answers
+    }
+  }, [currentQuestion, currentDifficulty, answeredQuestions, section, getNextAdaptiveQuestion, endSection]);
 
 
   if (!currentQuestion) {
