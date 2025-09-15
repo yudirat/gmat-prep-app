@@ -11,10 +11,13 @@ import BlockEditor from '../../components/BlockEditor';
 export default function GraphicsCreator({ user, onSave, initialData, allGraphicStimuli }) {
     // State for the graphic stimulus, sub-question, and form status
     const [graphicStimulus, setGraphicStimulus] = useState({ image: '', blurb: [{ type: 'text', value: '' }] });
-    const [subQuestion, setSubQuestion] = useState({...defaultSubQuestion});
+    const [subQuestions, setSubQuestions] = useState([{...defaultSubQuestion}]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [, setError] = useState('');
     const [, setSuccess] = useState('');
+
+    const addSubQuestion = () => setSubQuestions([...subQuestions, { ...defaultSubQuestion, id: Date.now().toString() }]);
+    const removeSubQuestion = (index) => setSubQuestions(subQuestions.filter((_, i) => i !== index));
 
     // Effect to populate the form when editing an existing graphic question
     useEffect(() => {
@@ -34,12 +37,14 @@ export default function GraphicsCreator({ user, onSave, initialData, allGraphicS
                 });
             }
             
-            setSubQuestion({
+            // This logic needs to be updated to find all associated questions
+            // For now, it will just place the single initialData into the array
+            setSubQuestions([{
                 ...initialData,
                 questionText: parseContent(initialData.questionText),
                 options: (initialData.options || []).map(opt => parseContent(opt)),
                 correctAnswer: Array.isArray(initialData.correctAnswer) ? initialData.correctAnswer : [initialData.correctAnswer]
-            });
+            }]);
         }
     }, [initialData, allGraphicStimuli]);
 
@@ -68,8 +73,10 @@ export default function GraphicsCreator({ user, onSave, initialData, allGraphicS
      * @param {string} field - The field to update.
      * @param {any} value - The new value.
      */
-    const handleSubQuestionChange = (index, field, value) => { // index is always 0 here
-        setSubQuestion(prev => ({ ...prev, [field]: value }));
+    const handleSubQuestionChange = (index, field, value) => {
+        const newSubQuestions = [...subQuestions];
+        newSubQuestions[index] = { ...newSubQuestions[index], [field]: value };
+        setSubQuestions(newSubQuestions);
     };
 
     /**
@@ -88,21 +95,23 @@ export default function GraphicsCreator({ user, onSave, initialData, allGraphicS
             const graphicStimulusRef = doc(collection(db, `artifacts/${appId}/public/data/graphicStimuli`));
             batch.set(graphicStimulusRef, { 
                 ...graphicStimulus, 
-                blurb: JSON.stringify(graphicStimulus.blurb), // Stringify the blurb blocks
+                blurb: JSON.stringify(graphicStimulus.blurb),
                 creatorId: user.uid, 
                 type: 'Data Insights',
                 createdAt: Timestamp.now()
             });
             
-            const questionRef = doc(collection(db, `artifacts/${appId}/public/data/questions`));
-            batch.set(questionRef, { 
-                ...subQuestion, 
-                questionText: JSON.stringify(subQuestion.questionText),
-                options: subQuestion.options.map(opt => JSON.stringify(opt)),
-                creatorId: user.uid, 
-                graphicStimulusId: graphicStimulusRef.id, 
-                type: 'Data Insights' 
-            });
+            for (const subQuestion of subQuestions) {
+                const questionRef = doc(collection(db, `artifacts/${appId}/public/data/questions`));
+                batch.set(questionRef, { 
+                    ...subQuestion, 
+                    questionText: JSON.stringify(subQuestion.questionText),
+                    options: subQuestion.options.map(opt => JSON.stringify(opt)),
+                    creatorId: user.uid, 
+                    graphicStimulusId: graphicStimulusRef.id, 
+                    type: 'Data Insights' 
+                });
+            }
 
             await batch.commit();
             setSuccess("Graphics Interpretation question added successfully!");
@@ -137,15 +146,19 @@ export default function GraphicsCreator({ user, onSave, initialData, allGraphicS
                 </div>
             </div>
             <hr className="my-6"/>
-            <h3 className="text-xl font-semibold mb-4">Associated Question</h3>
-            {/* Form for the associated sub-question */}
-            <SubQuestionForm 
-                question={subQuestion}
-                index={0}
-                onSubQuestionChange={handleSubQuestionChange}
-                isRemovable={false}
-                contentType="Data Insights"
-            />
+            <h3 className="text-xl font-semibold mb-4">Associated Questions</h3>
+            {subQuestions.map((q, index) => (
+                <SubQuestionForm 
+                    key={q.id || index}
+                    question={q}
+                    index={index}
+                    onSubQuestionChange={handleSubQuestionChange}
+                    onRemove={removeSubQuestion}
+                    isRemovable={subQuestions.length > 1}
+                    contentType="Data Insights"
+                />
+            ))}
+            <button type="button" onClick={addSubQuestion} className="text-indigo-600 font-semibold mt-4">+ Add Associated Question</button>
             <button type="submit" disabled={isSubmitting} className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 text-lg mt-6">
                 {isSubmitting ? 'Submitting...' : 'Save Graphics Content'}
             </button>

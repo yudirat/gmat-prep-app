@@ -47,8 +47,9 @@ export default function TableClassificationForm({ question, index, onSubQuestion
      * Adds a new item to be classified.
      */
     const addItem = () => {
-        onSubQuestionChange(index, 'itemsToClassify', [...items, '']);
-        onSubQuestionChange(index, 'correctAnswers', [...answers, 0]);
+        const newItems = [...items, ''];
+        const newAnswers = [...answers, 0];
+        onSubQuestionChange(index, { itemsToClassify: newItems, correctAnswers: newAnswers });
     };
 
     /**
@@ -56,8 +57,9 @@ export default function TableClassificationForm({ question, index, onSubQuestion
      * @param {number} itemIndex - The index of the item to remove.
      */
     const removeItem = (itemIndex) => {
-        onSubQuestionChange(index, 'itemsToClassify', items.filter((_, i) => i !== itemIndex));
-        onSubQuestionChange(index, 'correctAnswers', answers.filter((_, i) => i !== itemIndex));
+        const newItems = items.filter((_, i) => i !== itemIndex);
+        const newAnswers = answers.filter((_, i) => i !== itemIndex);
+        onSubQuestionChange(index, { itemsToClassify: newItems, correctAnswers: newAnswers });
     };
 
     /**
@@ -72,10 +74,10 @@ export default function TableClassificationForm({ question, index, onSubQuestion
      * @param {number} labelIndex - The index of the label to remove.
      */
     const removeLabel = (labelIndex) => {
-        onSubQuestionChange(index, 'classificationLabels', labels.filter((_, i) => i !== labelIndex));
+        const newLabels = labels.filter((_, i) => i !== labelIndex);
         // When a column is removed, reset answers that pointed to it or higher indices
         const newAnswers = answers.map(ans => ans === labelIndex ? 0 : ans > labelIndex ? ans - 1 : ans);
-        onSubQuestionChange(index, 'correctAnswers', newAnswers);
+        onSubQuestionChange(index, { classificationLabels: newLabels, correctAnswers: newAnswers });
     };
 
     return (

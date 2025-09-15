@@ -116,3 +116,70 @@ export const validateQuestionData = (question) => {
   // Add more checks as needed, e.g., for specific properties within content
   return true;
 };
+
+const DATA_SUFFICIENCY_OPTIONS = [
+  "Statement (1) ALONE is sufficient, but statement (2) ALONE is not sufficient.",
+  "Statement (2) ALONE is sufficient, but statement (1) ALONE is not sufficient.",
+  "BOTH statements TOGETHER are sufficient, but NEITHER statement ALONE is sufficient.",
+  "EACH statement ALONE is sufficient.",
+  "Statements (1) and (2) TOGETHER are NOT sufficient."
+];
+
+// Helper to safely parse content that might be a JSON string or an object
+const parseBlockContent = (content) => {
+    if (typeof content !== 'string') return 'Invalid Content';
+    try {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type === 'text') {
+            return parsed.map(p => p.value).join(' ');
+        }
+        return 'Unsupported Content Format';
+    } catch (e) {
+        // It might be a plain string from an older format
+        return content;
+    }
+};
+
+export const getCorrectAnswerText = (question) => {
+  if (!question) return "N/A";
+
+  switch (question.format) {
+    case 'mcq':
+      const correctIndices = Array.isArray(question.correctAnswer) ? question.correctAnswer : [question.correctAnswer];
+      return correctIndices.map(index => parseBlockContent(question.options[index])).join(', ');
+    
+    case 'Data Sufficiency':
+      return DATA_SUFFICIENCY_OPTIONS[question.correctAnswer];
+
+    case 'two-part-analysis':
+        if (!question.correctAnswers || question.correctAnswers.length < 2) return "N/A";
+        const part1Answer = question.part1Options[question.correctAnswers[0]];
+        const part2Answer = question.part2Options[question.correctAnswers[1]];
+        return `Part 1: ${part1Answer}, Part 2: ${part2Answer}`;
+
+    default:
+      return "N/A";
+  }
+};
+
+export const getStudentAnswerText = (question, answer) => {
+  if (!question || answer === undefined || answer === null) return "N/A";
+
+  switch (question.format) {
+    case 'mcq':
+      const answerIndices = Array.isArray(answer) ? answer : [answer];
+      return answerIndices.map(index => parseBlockContent(question.options[index])).join(', ');
+
+    case 'Data Sufficiency':
+      return DATA_SUFFICIENCY_OPTIONS[answer];
+
+    case 'two-part-analysis':
+        if (!answer || answer.length < 2) return "N/A";
+        const part1Answer = question.part1Options[answer[0]];
+        const part2Answer = question.part2Options[answer[1]];
+        return `Part 1: ${part1Answer}, Part 2: ${part2Answer}`;
+
+    default:
+      return Array.isArray(answer) ? answer.join(', ') : String(answer);
+  }
+};

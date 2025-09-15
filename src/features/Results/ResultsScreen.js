@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getSectionScaledScore, getTotalScaledScore } from '../../utils/scoringUtils'; // Import the new functions
+import ContentRenderer from '../../components/ContentRenderer';
+import QuestionRenderer from '../../components/QuestionRenderer';
+import { getCorrectAnswerText, getStudentAnswerText } from '../../utils'; // Assuming these helpers exist
 
 const ResultsScreen = ({ results: propResults }) => {
   const location = useLocation();
@@ -65,6 +68,13 @@ const ResultsScreen = ({ results: propResults }) => {
     return <div>Calculating results...</div>;
   }
 
+  let resultsArray = [];
+  if (Array.isArray(results)) { // This is a mock test result
+      resultsArray = results;
+  } else if (results.testType && results.answers) { // This is a past result
+      resultsArray = [{ section: results.testType, results: results.answers }];
+  }
+
   return (
     <div className="p-8 bg-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold text-center mb-4">Test Results</h1>
@@ -93,6 +103,38 @@ const ResultsScreen = ({ results: propResults }) => {
                 <p className="text-sm text-gray-500">({score.correctQuestions} / {score.totalQuestions} questions)</p>
               </div>
             </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="max-w-4xl mx-auto mt-12">
+        <h2 className="text-2xl font-bold text-center mb-8">Question Review</h2>
+        {resultsArray.map(sectionResult => (
+          <div key={sectionResult.section}>
+            <h3 className="text-xl font-semibold my-4 p-2 bg-gray-200 rounded-md">{sectionResult.section}</h3>
+            {(Array.isArray(sectionResult.results) ? sectionResult.results : sectionResult.results.answers).map((q, index) => (
+              <div key={index} className="mb-8 p-4 border rounded-lg bg-white shadow-sm">
+                <p className="font-semibold">Question {index + 1}</p>
+                <QuestionRenderer question={q.question} />
+                <div className="mt-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-800">
+                  Correct Answer: {getCorrectAnswerText(q.question)}
+                </div>
+                {q.isCorrect === false && (
+                  <div className="mt-2 p-3 rounded-md bg-red-50 border border-red-200 text-red-800">
+                    Your Answer: {getStudentAnswerText(q.question, q.answer)}
+                  </div>
+                )}
+
+                {q.question.explanation && (
+                  <div className="mt-4">
+                    <h3 className="text-lg font-bold border-b pb-2 mb-2">Explanation</h3>
+                    <div className="p-4 bg-gray-50 rounded-md">
+                      <ContentRenderer content={q.question.explanation} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         ))}
       </div>

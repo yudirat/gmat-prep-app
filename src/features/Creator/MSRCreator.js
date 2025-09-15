@@ -162,15 +162,17 @@ export default function MSRCreator({ user, onSave, initialData, allQuestions, al
      * @param {string} field - The field to update.
      * @param {any} value - The new value.
      */
-    const handleSubQuestionChange = (index, field, value) => {
+    const handleSubQuestionChange = (index, fieldOrChanges, value) => {
         const newSubQuestions = [...subQuestions];
         let q = { ...newSubQuestions[index] };
 
-        if (field === 'format') {
+        if (typeof fieldOrChanges === 'object') {
+            q = { ...q, ...fieldOrChanges };
+        } else if (fieldOrChanges === 'format') {
             const oldDifficulty = q.difficulty;
-            q = { ...defaultSubQuestion, id: uuidv4(), format: value, difficulty: oldDifficulty };
+            q = { ...defaultSubQuestion, id: q.id || uuidv4(), format: value, difficulty: oldDifficulty };
         } else {
-            q[field] = value;
+            q[fieldOrChanges] = value;
         }
         
         newSubQuestions[index] = q;
@@ -209,6 +211,7 @@ export default function MSRCreator({ user, onSave, initialData, allQuestions, al
                     ...q,
                     questionText: JSON.stringify(q.questionText),
                     options: q.options.map(opt => JSON.stringify(opt)),
+                    explanation: JSON.stringify(q.explanation),
                     creatorId: user.uid,
                     msrSetId: msrSetRef.id,
                     type: 'Data Insights'

@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import MSRCreator from './MSRCreator';
 import GraphicsCreator from './GraphicsCreator';
 import TableCreator from './TableCreator';
-import QuantMCQCreator from './QuantMCQCreator';
+import DataSufficiencyForm from './DataSufficiencyForm';
+import TwoPartAnalysisCreator from './TwoPartAnalysisCreator';
 
 /**
  * Component for creating Data Insights questions.
@@ -11,15 +12,17 @@ import QuantMCQCreator from './QuantMCQCreator';
  */
 export default function DataInsightsCreator({ user, onSave, initialData, allQuestions, allMsrSets, allGraphicStimuli, allTableStimuli }) {
     // State to manage the type of Data Insights question to create
-    const [diType, setDiType] = useState('Single');
+    const [diType, setDiType] = useState('Data Sufficiency');
 
     // Effect to set the question type when editing an existing question
     useEffect(() => {
         if (initialData) {
-            if (initialData.msrSetId) setDiType('MSR');
+            if (initialData.format === 'Data Sufficiency') setDiType('Data Sufficiency');
+            else if (initialData.format === 'Two-Part Analysis') setDiType('Two-Part Analysis');
+            else if (initialData.msrSetId) setDiType('MSR');
             else if (initialData.graphicStimulusId) setDiType('Graphics Interpretation');
             else if (initialData.tableStimulusId) setDiType('Table Analysis');
-            else setDiType('Single');
+            // Default can be Data Sufficiency or another appropriate type
         }
     }, [initialData]);
 
@@ -34,9 +37,12 @@ export default function DataInsightsCreator({ user, onSave, initialData, allQues
                 return <GraphicsCreator user={user} onSave={onSave} initialData={initialData} allQuestions={allQuestions} allGraphicStimuli={allGraphicStimuli} />;
             case 'Table Analysis':
                 return <TableCreator user={user} onSave={onSave} initialData={initialData} allQuestions={allQuestions} allTableStimuli={allTableStimuli} />;
-            case 'Single':
+            case 'Data Sufficiency':
+                return <DataSufficiencyForm user={user} onSave={onSave} initialData={initialData} />;
+            case 'Two-Part Analysis':
+                return <TwoPartAnalysisCreator user={user} onSave={onSave} initialData={initialData} />;
             default:
-                return <QuantMCQCreator user={user} onSave={onSave} initialData={initialData} allQuestions={allQuestions} type="Data Insights" />;
+                return <DataSufficiencyForm user={user} onSave={onSave} initialData={initialData} />;
         }
     };
 
@@ -51,7 +57,8 @@ export default function DataInsightsCreator({ user, onSave, initialData, allQues
                     disabled={!!initialData} 
                     className="w-full p-3 border rounded bg-gray-50 disabled:bg-gray-200 disabled:cursor-not-allowed"
                 >
-                    <option value="Single">Single Question (MCQ)</option>
+                    <option value="Data Sufficiency">Data Sufficiency</option>
+                    <option value="Two-Part Analysis">Two-Part Analysis</option>
                     <option value="MSR">Multi-Source Reasoning</option>
                     <option value="Graphics Interpretation">Graphics Interpretation</option>
                     <option value="Table Analysis">Table Analysis</option>

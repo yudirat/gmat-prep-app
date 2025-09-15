@@ -45,8 +45,7 @@ export default function EitherOrForm({ question, index, onSubQuestionChange }) {
     const addStatement = () => {
         const newStatements = [...(question.statements || []), ''];
         const newAnswers = [...(question.correctAnswers || []), false];
-        onSubQuestionChange(index, 'statements', newStatements);
-        onSubQuestionChange(index, 'correctAnswers', newAnswers);
+        onSubQuestionChange(index, { statements: newStatements, correctAnswers: newAnswers });
     };
 
     /**
@@ -56,8 +55,7 @@ export default function EitherOrForm({ question, index, onSubQuestionChange }) {
     const removeStatement = (stmtIndex) => {
         const newStatements = (question.statements || []).filter((_, i) => i !== stmtIndex);
         const newAnswers = (question.correctAnswers || []).filter((_, i) => i !== stmtIndex);
-        onSubQuestionChange(index, 'statements', newStatements);
-        onSubQuestionChange(index, 'correctAnswers', newAnswers);
+        onSubQuestionChange(index, { statements: newStatements, correctAnswers: newAnswers });
     };
 
     const labels = question.labels || ['True', 'False'];

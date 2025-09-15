@@ -1,4 +1,3 @@
-// This component provides a form for creating fill-in-the-blank questions.
 import React from 'react';
 
 /**
@@ -30,13 +29,13 @@ export default function FillInTheBlankForm({ question, index, onSubQuestionChang
     const addPart = (partIndex, type) => {
         const newParts = [...questionParts];
         if (type === 'dropdown') {
-            const newDropdowns = [...dropdowns, { options: [''], correctAnswer: 0 }];
+            const newDropdowns = [...dropdowns, { options: ['', ''], correctAnswer: 0 }];
             newParts.splice(partIndex + 1, 0, { type: 'dropdown', value: dropdowns.length });
-            onSubQuestionChange(index, 'dropdowns', newDropdowns);
+            onSubQuestionChange(index, { questionParts: newParts, dropdowns: newDropdowns });
         } else {
             newParts.splice(partIndex + 1, 0, { type: 'text', value: '' });
+            onSubQuestionChange(index, 'questionParts', newParts);
         }
-        onSubQuestionChange(index, 'questionParts', newParts);
     };
 
     /**
@@ -45,8 +44,24 @@ export default function FillInTheBlankForm({ question, index, onSubQuestionChang
      */
     const removePart = (partIndex) => {
         if (questionParts.length <= 1) return; // Cannot remove the last part
+        
+        const partToRemove = questionParts[partIndex];
         const newParts = questionParts.filter((_, i) => i !== partIndex);
-        onSubQuestionChange(index, 'questionParts', newParts);
+
+        if (partToRemove.type === 'dropdown') {
+            const dropdownIndexToRemove = partToRemove.value;
+            const newDropdowns = dropdowns.filter((_, i) => i !== dropdownIndexToRemove);
+
+            // Adjust the value index for subsequent dropdown parts
+            newParts.forEach(part => {
+                if (part.type === 'dropdown' && part.value > dropdownIndexToRemove) {
+                    part.value -= 1;
+                }
+            });
+            onSubQuestionChange(index, { questionParts: newParts, dropdowns: newDropdowns });
+        } else {
+            onSubQuestionChange(index, 'questionParts', newParts);
+        }
     };
 
     // --- Dropdown Handlers ---
@@ -59,6 +74,7 @@ export default function FillInTheBlankForm({ question, index, onSubQuestionChang
      */
     const handleDropdownOptionChange = (dropdownIndex, optionIndex, value) => {
         const newDropdowns = [...dropdowns];
+        if (!newDropdowns[dropdownIndex]) return;
         newDropdowns[dropdownIndex].options[optionIndex] = value;
         onSubQuestionChange(index, 'dropdowns', newDropdowns);
     };
@@ -69,6 +85,7 @@ export default function FillInTheBlankForm({ question, index, onSubQuestionChang
      */
     const addDropdownOption = (dropdownIndex) => {
         const newDropdowns = [...dropdowns];
+        if (!newDropdowns[dropdownIndex]) return;
         newDropdowns[dropdownIndex].options.push('');
         onSubQuestionChange(index, 'dropdowns', newDropdowns);
     };
@@ -80,10 +97,10 @@ export default function FillInTheBlankForm({ question, index, onSubQuestionChang
      */
     const removeDropdownOption = (dropdownIndex, optionIndex) => {
         const newDropdowns = [...dropdowns];
-        if (newDropdowns[dropdownIndex].options.length > 1) {
-            newDropdowns[dropdownIndex].options.splice(optionIndex, 1);
-            onSubQuestionChange(index, 'dropdowns', newDropdowns);
-        }
+        if (!newDropdowns[dropdownIndex] || newDropdowns[dropdownIndex].options.length <= 1) return;
+        
+        newDropdowns[dropdownIndex].options.splice(optionIndex, 1);
+        onSubQuestionChange(index, 'dropdowns', newDropdowns);
     };
 
     /**
@@ -93,6 +110,7 @@ export default function FillInTheBlankForm({ question, index, onSubQuestionChang
      */
     const setDropdownCorrectAnswer = (dropdownIndex, optionIndex) => {
         const newDropdowns = [...dropdowns];
+        if (!newDropdowns[dropdownIndex]) return;
         newDropdowns[dropdownIndex].correctAnswer = optionIndex;
         onSubQuestionChange(index, 'dropdowns', newDropdowns);
     };
@@ -101,46 +119,49 @@ export default function FillInTheBlankForm({ question, index, onSubQuestionChang
         <div className="p-3 bg-white rounded border">
             <label className="block text-gray-700 text-xs font-bold mb-2">Question Builder</label>
             <div className="flex flex-wrap items-start gap-2">
-                {questionParts.map((part, partIndex) => (
-                    <div key={partIndex} className="flex items-center gap-1">
-                        {part.type === 'text' ? (
-                            <input 
-                                type="text" 
-                                value={part.value} 
-                                onChange={e => handlePartChange(partIndex, e.target.value)} 
-                                className="p-1 border rounded" 
-                                placeholder="Enter text..."
-                            />
-                        ) : (
-                            <div className="p-2 border border-dashed border-indigo-400 rounded bg-indigo-50">
-                                <p className="text-xs font-semibold">Dropdown {part.value + 1}</p>
-                                {(dropdowns[part.value]?.options || []).map((opt, optIndex) => (
-                                    <div key={optIndex} className="flex items-center my-1">
-                                        <input 
-                                            type="radio" 
-                                            name={`q${index}dd${part.value}`} 
-                                            checked={dropdowns[part.value]?.correctAnswer === optIndex} 
-                                            onChange={() => setDropdownCorrectAnswer(part.value, optIndex)} 
-                                        />
-                                        <input 
-                                            type="text" 
-                                            value={opt} 
-                                            onChange={e => handleDropdownOptionChange(part.value, optIndex, e.target.value)} 
-                                            className="flex-grow p-1 border rounded mx-2 text-sm" 
-                                        />
-                                        <button type="button" onClick={() => removeDropdownOption(part.value, optIndex)} className="text-red-400 hover:text-red-600 text-xs">&times;</button>
-                                    </div>
-                                ))}
-                                <button type="button" onClick={() => addDropdownOption(part.value)} className="text-xs text-indigo-600 hover:text-indigo-800">+ Add Option</button>
+                {questionParts.map((part, partIndex) => {
+                    const dropdown = part.type === 'dropdown' ? dropdowns[part.value] : null;
+                    return (
+                        <div key={partIndex} className="flex items-center gap-1">
+                            {part.type === 'text' ? (
+                                <input 
+                                    type="text" 
+                                    value={part.value} 
+                                    onChange={e => handlePartChange(partIndex, e.target.value)} 
+                                    className="p-1 border rounded" 
+                                    placeholder="Enter text..."
+                                />
+                            ) : (
+                                <div className="p-2 border border-dashed border-indigo-400 rounded bg-indigo-50">
+                                    <p className="text-xs font-semibold">Dropdown {part.value + 1}</p>
+                                    {dropdown && (dropdown.options || []).map((opt, optIndex) => (
+                                        <div key={optIndex} className="flex items-center my-1">
+                                            <input 
+                                                type="radio" 
+                                                name={`q${index}dd${part.value}`} 
+                                                checked={dropdown.correctAnswer === optIndex} 
+                                                onChange={() => setDropdownCorrectAnswer(part.value, optIndex)} 
+                                            />
+                                            <input 
+                                                type="text" 
+                                                value={opt} 
+                                                onChange={e => handleDropdownOptionChange(part.value, optIndex, e.target.value)} 
+                                                className="flex-grow p-1 border rounded mx-2 text-sm" 
+                                            />
+                                            <button type="button" onClick={() => removeDropdownOption(part.value, optIndex)} className="text-red-400 hover:text-red-600 text-xs">&times;</button>
+                                        </div>
+                                    ))}
+                                    {dropdown && <button type="button" onClick={() => addDropdownOption(part.value)} className="text-xs text-indigo-600 hover:text-indigo-800">+ Add Option</button>}
+                                </div>
+                            )}
+                            <div className="flex flex-col">
+                                <button type="button" onClick={() => removePart(partIndex)} title="Remove Part" className="text-gray-400 hover:text-red-500 text-lg">&minus;</button>
+                                <button type="button" onClick={() => addPart(partIndex, 'text')} title="Add Text Part" className="text-gray-400 hover:text-green-500 text-lg">+</button>
+                                <button type="button" onClick={() => addPart(partIndex, 'dropdown')} title="Add Dropdown" className="text-gray-400 hover:text-indigo-500 text-lg">&#9662;</button>
                             </div>
-                        )}
-                        <div className="flex flex-col">
-                            <button type="button" onClick={() => removePart(partIndex)} title="Remove Part" className="text-gray-400 hover:text-red-500 text-lg">&minus;</button>
-                            <button type="button" onClick={() => addPart(partIndex, 'text')} title="Add Text Part" className="text-gray-400 hover:text-green-500 text-lg">+</button>
-                            <button type="button" onClick={() => addPart(partIndex, 'dropdown')} title="Add Dropdown" className="text-gray-400 hover:text-indigo-500 text-lg">&#9662;</button>
                         </div>
-                    </div>
-                ))}
+                    )
+                })}
             </div>
         </div>
     );

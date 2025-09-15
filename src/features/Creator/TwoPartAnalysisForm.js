@@ -1,171 +1,119 @@
-// This component provides a form for creating two-part analysis questions.
 import React from 'react';
+import BlockEditor from '../../components/BlockEditor';
 
-/**
- * Component for creating two-part analysis questions.
- * This form allows the creator to define two separate parts of a question, each with its own prompt and options.
- */
 export default function TwoPartAnalysisForm({ question, index, onSubQuestionChange }) {
-    const part1Options = question.part1Options || [''];
-    const part2Options = question.part2Options || [''];
-    const correctAnswers = question.correctAnswers || [0, 0];
+    // Defensively handle different shapes of `options` data
+    let currentOptions = question.options || [''];
+    if (Array.isArray(currentOptions) && currentOptions.length > 0 && !currentOptions.every(item => typeof item === 'string')) {
+        // If options are not a simple string array, reset to a default that works for this form.
+        // This handles the case where the format was switched from another type like MCQ.
+        currentOptions = ['', '', ''];
+    }
 
-    // --- Part 1 Handlers ---
+    const options = currentOptions;
+    const correctAnswers = question.correctAnswers || [null, null];
 
-    /**
-     * Handles changes to the prompt for Part 1.
-     * @param {string} value - The new prompt.
-     */
-    const handlePart1PromptChange = (value) => {
-        onSubQuestionChange(index, 'part1Prompt', value);
+    const handleQuestionChange = (newContent) => {
+        onSubQuestionChange(index, 'questionText', newContent);
     };
 
-    /**
-     * Handles changes to an option for Part 1.
-     * @param {number} optIndex - The index of the option.
-     * @param {string} value - The new option value.
-     */
-    const handlePart1OptionChange = (optIndex, value) => {
-        const newOptions = [...part1Options];
+    const handleOptionChange = (optIndex, value) => {
+        const newOptions = [...options];
         newOptions[optIndex] = value;
-        onSubQuestionChange(index, 'part1Options', newOptions);
+        onSubQuestionChange(index, 'options', newOptions);
     };
 
-    /**
-     * Adds a new option to Part 1.
-     */
-    const addPart1Option = () => {
-        onSubQuestionChange(index, 'part1Options', [...part1Options, '']);
+    const addOption = () => {
+        onSubQuestionChange(index, 'options', [...options, '']);
     };
 
-    /**
-     * Removes an option from Part 1.
-     * @param {number} optIndex - The index of the option to remove.
-     */
-    const removePart1Option = (optIndex) => {
-        onSubQuestionChange(index, 'part1Options', part1Options.filter((_, i) => i !== optIndex));
+    const removeOption = (optIndex) => {
+        const newOptions = options.filter((_, i) => i !== optIndex);
+        onSubQuestionChange(index, 'options', newOptions);
+        const newCorrect = [...correctAnswers];
+        if (newCorrect[0] === optIndex) newCorrect[0] = null;
+        if (newCorrect[1] === optIndex) newCorrect[1] = null;
+        onSubQuestionChange(index, 'correctAnswers', newCorrect);
     };
 
-    /**
-     * Sets the correct answer for Part 1.
-     * @param {number} optIndex - The index of the correct answer.
-     */
-    const handlePart1CorrectAnswerChange = (optIndex) => {
+    const handleCorrectAnswerChange = (partIndex, optIndex) => {
         const newAnswers = [...correctAnswers];
-        newAnswers[0] = optIndex;
+        newAnswers[partIndex] = optIndex;
         onSubQuestionChange(index, 'correctAnswers', newAnswers);
     };
 
-    // --- Part 2 Handlers ---
-
-    /**
-     * Handles changes to the prompt for Part 2.
-     * @param {string} value - The new prompt.
-     */
-    const handlePart2PromptChange = (value) => {
-        onSubQuestionChange(index, 'part2Prompt', value);
-    };
-
-    /**
-     * Handles changes to an option for Part 2.
-     * @param {number} optIndex - The index of the option.
-     * @param {string} value - The new option value.
-     */
-    const handlePart2OptionChange = (optIndex, value) => {
-        const newOptions = [...part2Options];
-        newOptions[optIndex] = value;
-        onSubQuestionChange(index, 'part2Options', newOptions);
-    };
-
-    /**
-     * Adds a new option to Part 2.
-     */
-    const addPart2Option = () => {
-        onSubQuestionChange(index, 'part2Options', [...part2Options, '']);
-    };
-
-    /**
-     * Removes an option from Part 2.
-     * @param {number} optIndex - The index of the option to remove.
-     */
-    const removePart2Option = (optIndex) => {
-        onSubQuestionChange(index, 'part2Options', part2Options.filter((_, i) => i !== optIndex));
-    };
-
-    /**
-     * Sets the correct answer for Part 2.
-     * @param {number} optIndex - The index of the correct answer.
-     */
-    const handlePart2CorrectAnswerChange = (optIndex) => {
-        const newAnswers = [...correctAnswers];
-        newAnswers[1] = optIndex;
-        onSubQuestionChange(index, 'correctAnswers', newAnswers);
+    const handlePromptChange = (partIndex, value) => {
+        const field = partIndex === 0 ? 'part1Prompt' : 'part2Prompt';
+        onSubQuestionChange(index, field, value);
     };
 
     return (
-        <div className="grid grid-cols-2 gap-4">
-            {/* --- Column 1: Part 1 of the question --- */}
-            <div className="p-3 bg-white rounded border">
-                <label className="block text-gray-700 text-xs font-bold mb-2">Part 1 Prompt</label>
-                <input 
-                    type="text" 
-                    value={question.part1Prompt || ''} 
-                    onChange={e => handlePart1PromptChange(e.target.value)} 
-                    className="w-full p-1 border rounded mb-2" 
+        <div className="space-y-4">
+            <div>
+                <label className="block text-gray-700 text-xs font-bold mb-1">Main Question Prompt</label>
+                <BlockEditor 
+                    content={Array.isArray(question.questionText) ? question.questionText : [{type: 'text', value: question.questionText || ''}]}
+                    onContentChange={handleQuestionChange}
                 />
-                <label className="block text-gray-700 text-xs font-bold mb-2">Part 1 Options</label>
-                {part1Options.map((opt, optIndex) => (
-                    <div key={optIndex} className="flex items-center mb-1">
-                        <input 
-                            type="radio" 
-                            name={`q${index}part1correct`} 
-                            checked={correctAnswers[0] === optIndex} 
-                            onChange={() => handlePart1CorrectAnswerChange(optIndex)} 
-                        />
-                        <input 
-                            type="text" 
-                            value={opt} 
-                            onChange={e => handlePart1OptionChange(optIndex, e.target.value)} 
-                            className="flex-grow p-1 border rounded mx-2" 
-                        />
-                        {part1Options.length > 1 && 
-                            <button type="button" onClick={() => removePart1Option(optIndex)} className="text-red-400 hover:text-red-600">&times;</button>
-                        }
-                    </div>
-                ))}
-                <button type="button" onClick={addPart1Option} className="text-sm text-indigo-600 hover:text-indigo-800">+ Add Option</button>
             </div>
 
-            {/* --- Column 2: Part 2 of the question --- */}
             <div className="p-3 bg-white rounded border">
-                <label className="block text-gray-700 text-xs font-bold mb-2">Part 2 Prompt</label>
-                <input 
-                    type="text" 
-                    value={question.part2Prompt || ''} 
-                    onChange={e => handlePart2PromptChange(e.target.value)} 
-                    className="w-full p-1 border rounded mb-2" 
-                />
-                <label className="block text-gray-700 text-xs font-bold mb-2">Part 2 Options</label>
-                {part2Options.map((opt, optIndex) => (
+                <label className="block text-gray-700 text-xs font-bold mb-2">Shared Answer Options</label>
+                {options.map((opt, optIndex) => (
                     <div key={optIndex} className="flex items-center mb-1">
-                        <input 
-                            type="radio" 
-                            name={`q${index}part2correct`} 
-                            checked={correctAnswers[1] === optIndex} 
-                            onChange={() => handlePart2CorrectAnswerChange(optIndex)} 
-                        />
                         <input 
                             type="text" 
                             value={opt} 
-                            onChange={e => handlePart2OptionChange(optIndex, e.target.value)} 
-                            className="flex-grow p-1 border rounded mx-2" 
+                            onChange={e => handleOptionChange(optIndex, e.target.value)} 
+                            className="flex-grow p-1 border rounded"
+                            placeholder={`Option ${optIndex + 1}`}
                         />
-                        {part2Options.length > 1 && 
-                            <button type="button" onClick={() => removePart2Option(optIndex)} className="text-red-400 hover:text-red-600">&times;</button>
+                        {options.length > 1 && 
+                            <button type="button" onClick={() => removeOption(optIndex)} className="ml-2 text-red-500 hover:text-red-700">&times;</button>
                         }
                     </div>
                 ))}
-                <button type="button" onClick={addPart2Option} className="text-sm text-indigo-600 hover:text-indigo-800">+ Add Option</button>
+                <button type="button" onClick={addOption} className="text-sm text-indigo-600 hover:text-indigo-800">+ Add Option</button>
+            </div>
+
+            <div>
+                <label className="block text-gray-700 text-xs font-bold mb-2">Columns & Correct Answers</label>
+                <table className="w-full text-center">
+                    <thead>
+                        <tr>
+                            <th className="p-2 border">Options</th>
+                            <th className="p-2 border">
+                                <input type="text" value={question.part1Prompt || ''} onChange={e => handlePromptChange(0, e.target.value)} placeholder="Column 1" className="w-full p-1 text-center"/>
+                            </th>
+                            <th className="p-2 border">
+                                <input type="text" value={question.part2Prompt || ''} onChange={e => handlePromptChange(1, e.target.value)} placeholder="Column 2" className="w-full p-1 text-center"/>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {options.map((opt, optIndex) => (
+                            <tr key={optIndex}>
+                                <td className="p-2 border text-left">{opt || `(Option ${optIndex + 1})`}</td>
+                                <td className="p-2 border">
+                                    <input 
+                                        type="radio"
+                                        name={`q${index}part1correct`}
+                                        checked={correctAnswers[0] === optIndex}
+                                        onChange={() => handleCorrectAnswerChange(0, optIndex)}
+                                    />
+                                </td>
+                                <td className="p-2 border">
+                                    <input 
+                                        type="radio"
+                                        name={`q${index}part2correct`}
+                                        checked={correctAnswers[1] === optIndex}
+                                        onChange={() => handleCorrectAnswerChange(1, optIndex)}
+                                    />
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

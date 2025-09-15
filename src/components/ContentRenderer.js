@@ -62,7 +62,7 @@ export default function ContentRenderer({ content }) {
                     return null;
                 }
 
-                if (!block.type || !block.value) {
+                if (!block.type || !('value' in block)) {
                     console.error(`Block missing type or value at index ${index}:`, block);
                     return null;
                 }

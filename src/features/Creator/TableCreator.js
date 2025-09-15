@@ -10,10 +10,13 @@ import SubQuestionForm, { defaultSubQuestion } from './SubQuestionForm';
 export default function TableCreator({ user, onSave, initialData, allTableStimuli }) {
     // State for the table data, sub-question, and form status
     const [tableStimulus, setTableStimulus] = useState({ headers: [''], rows: [['']] });
-    const [subQuestion, setSubQuestion] = useState({...defaultSubQuestion});
+    const [subQuestions, setSubQuestions] = useState([{...defaultSubQuestion}]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [, setError] = useState('');
     const [, setSuccess] = useState('');
+
+    const addSubQuestion = () => setSubQuestions([...subQuestions, { ...defaultSubQuestion, id: Date.now().toString() }]);
+    const removeSubQuestion = (index) => setSubQuestions(subQuestions.filter((_, i) => i !== index));
 
     // Effect to populate the form when editing an existing table question
     useEffect(() => {
@@ -30,12 +33,12 @@ export default function TableCreator({ user, onSave, initialData, allTableStimul
                 setTableStimulus(stimulus);
             }
             
-            setSubQuestion({
+            setSubQuestions([{
                 ...initialData,
                 questionText: parseContent(initialData.questionText),
                 options: (initialData.options || []).map(opt => parseContent(opt)),
                 correctAnswer: Array.isArray(initialData.correctAnswer) ? initialData.correctAnswer : [initialData.correctAnswer]
-            });
+            }]);
         }
     }, [initialData, allTableStimuli]);
 
@@ -78,8 +81,10 @@ export default function TableCreator({ user, onSave, initialData, allTableStimul
      * @param {string} field - The field to update.
      * @param {any} value - The new value.
      */
-    const handleSubQuestionChange = (index, field, value) => { // index is always 0 here
-        setSubQuestion(prev => ({ ...prev, [field]: value }));
+    const handleSubQuestionChange = (index, field, value) => {
+        const newSubQuestions = [...subQuestions];
+        newSubQuestions[index] = { ...newSubQuestions[index], [field]: value };
+        setSubQuestions(newSubQuestions);
     };
 
     /**
@@ -103,15 +108,17 @@ export default function TableCreator({ user, onSave, initialData, allTableStimul
                 createdAt: Timestamp.now()
             });
             
-            const questionRef = doc(collection(db, `artifacts/${appId}/public/data/questions`));
-            batch.set(questionRef, { 
-                ...subQuestion, 
-                questionText: JSON.stringify(subQuestion.questionText),
-                options: subQuestion.options.map(opt => JSON.stringify(opt)),
-                creatorId: user.uid, 
-                tableStimulusId: tableStimulusRef.id, 
-                type: 'Data Insights' 
-            });
+            for (const subQuestion of subQuestions) {
+                const questionRef = doc(collection(db, `artifacts/${appId}/public/data/questions`));
+                batch.set(questionRef, { 
+                    ...subQuestion, 
+                    questionText: JSON.stringify(subQuestion.questionText),
+                    options: subQuestion.options.map(opt => JSON.stringify(opt)),
+                    creatorId: user.uid, 
+                    tableStimulusId: tableStimulusRef.id, 
+                    type: 'Data Insights' 
+                });
+            }
 
             await batch.commit();
             setSuccess("Table Analysis question added successfully!");
@@ -175,14 +182,19 @@ export default function TableCreator({ user, onSave, initialData, allTableStimul
                 </div>
             </div>
             <hr className="my-6"/>
-            <h3 className="text-xl font-semibold mb-4">Associated Question</h3>
-            <SubQuestionForm 
-                question={subQuestion}
-                index={0}
-                onSubQuestionChange={handleSubQuestionChange}
-                isRemovable={false}
-                contentType="Data Insights"
-            />
+            <h3 className="text-xl font-semibold mb-4">Associated Questions</h3>
+            {subQuestions.map((q, index) => (
+                <SubQuestionForm 
+                    key={q.id || index}
+                    question={q}
+                    index={index}
+                    onSubQuestionChange={handleSubQuestionChange}
+                    onRemove={removeSubQuestion}
+                    isRemovable={subQuestions.length > 1}
+                    contentType="Data Insights"
+                />
+            ))}
+            <button type="button" onClick={addSubQuestion} className="text-indigo-600 font-semibold mt-4">+ Add Associated Question</button>
             <button type="submit" disabled={isSubmitting} className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 text-lg mt-6">
                 {isSubmitting ? 'Submitting...' : 'Add Content to Bank'}
             </button>

@@ -18,6 +18,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
     const [isMultipleCorrect, setIsMultipleCorrect] = useState(false);
     const [correctAnswer, setCorrectAnswer] = useState([]);
     const [difficulty, setDifficulty] = useState(3);
+    const [explanation, setExplanation] = useState([{ type: 'text', value: '' }]);
 
     // State for form submission and UI feedback
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,6 +49,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
             setIsMultipleCorrect(data.isMultipleCorrect || false);
             setCorrectAnswer(Array.isArray(data.correctAnswer) ? data.correctAnswer : [data.correctAnswer]);
             setDifficulty(data.difficulty || 3);
+            setExplanation(parseContent(data.explanation));
         }
     }, [initialData, isEditingCopy]);
 
@@ -181,6 +183,7 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
             correctAnswer: isMultipleCorrect ? correctAnswer : correctAnswer[0],
             isMultipleCorrect,
             tags: selectedTags,
+            explanation: JSON.stringify(explanation),
         };
 
         try {
@@ -312,6 +315,10 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
                         </div>
                     ))}
                     <button type="button" onClick={handleAddOption} className="text-indigo-600 font-semibold mt-2">+ Add Option</button>
+                </div>
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Explanation</label>
+                    <BlockEditor content={explanation} onContentChange={setExplanation} />
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Difficulty (1-5)</label>
