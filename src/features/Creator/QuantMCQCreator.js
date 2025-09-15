@@ -57,30 +57,37 @@ export default function QuantMCQCreator({ user, onSave, initialData = null, type
     };
 
     const handleCopySelected = async (selectedQuestionsWithCopies) => {
-        setIsSubmitting(true); // Indicate submission is in progress
+        setIsSubmitting(true);
         try {
             if (selectedQuestionsWithCopies.length > 0) {
-                                const questionToCopy = selectedQuestionsWithCopies[0];
-                const newQuestionRef = doc(collection(db, `artifacts/${appId}/public/data/questions`));
-    
-                const processedQuestion = { ...questionToCopy };
-                delete processedQuestion.id; // Remove original ID
-                delete processedQuestion.passageId;
-                delete processedQuestion.msrSetId;
+                const questionToCopy = selectedQuestionsWithCopies[0];
+                
+                // Flatten the data structure before saving
+                const { content, ...rest } = questionToCopy;
+                const dataToSave = {
+                    ...rest,
+                    questionText: JSON.stringify(content.questionText || '[]'),
+                    options: (content.options || []).map(opt => JSON.stringify(opt)),
+                    correctAnswer: content.correctAnswer,
+                };
+                delete dataToSave.id;
+                delete dataToSave.passageId;
+                delete dataToSave.msrSetId;
 
-                processedQuestion.creatorId = user.uid;
-                processedQuestion.type = type;
-                processedQuestion.createdAt = Timestamp.now();
-    
-                await setDoc(newQuestionRef, processedQuestion);
-                onSave("Question copied successfully to question bank!"); // Success message
+                dataToSave.creatorId = user.uid;
+                dataToSave.type = type;
+                dataToSave.createdAt = Timestamp.now();
+
+                const newQuestionRef = doc(collection(db, `artifacts/${appId}/public/data/questions`));
+                await setDoc(newQuestionRef, dataToSave);
+                onSave("Question copied successfully to question bank!");
             }
         } catch (err) {
             console.error("Error copying question:", err);
-            onSave("Failed to copy question. Please try again."); // Error message
+            onSave("Failed to copy question. Please try again.");
         } finally {
-            setIsSubmitting(false); // End submission
-            setIsSelectorOpen(false); // Close modal
+            setIsSubmitting(false);
+            setIsSelectorOpen(false);
         }
     };
 

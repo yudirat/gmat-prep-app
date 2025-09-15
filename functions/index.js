@@ -6,7 +6,15 @@ const {onCall} = require("firebase-functions/v2/https");
 admin.initializeApp();
 
 exports.createUser = onCall(async (request) => {
-  const {email, password, displayName} = request.data;
+  // 1. Expect the client to send the `appId` along with user details.
+  const {email, password, displayName, appId} = request.data;
+
+  if (!appId) {
+    throw new functions.https.HttpsError(
+        'invalid-argument',
+        'The function must be called with an "appId" to create a user correctly.'
+    );
+  }
 
   try {
     const userRecord = await admin.auth().createUser({
@@ -15,11 +23,12 @@ exports.createUser = onCall(async (request) => {
       displayName: displayName,
     });
 
-    // Create a user document in Firestore
-    await admin.firestore().collection('users').doc(userRecord.uid).set({
+    // 2. Save the user document to the correct path that your trigger is watching.
+    const userDocPath = `artifacts/${appId}/users/${userRecord.uid}`;
+    await admin.firestore().doc(userDocPath).set({
       email: email,
       displayName: displayName,
-      role: 'student', // or any default role
+      role: 'student', // Default role for new users
     });
 
     return {uid: userRecord.uid};
@@ -47,7 +56,6 @@ exports.setUserRole = onDocumentWritten(
       const snapshot = event.data.after;
       const userId = event.params.userId;
 
-      // When a document is deleted, there's nothing to do.
       if (!snapshot.exists) {
         console.log(`User document ${userId} deleted. No action taken.`);
         return;
@@ -55,14 +63,12 @@ exports.setUserRole = onDocumentWritten(
 
       const userData = snapshot.data();
 
-      // Check if the role has actually changed to avoid unnecessary updates.
-      const previousData = event.data.before.data();
-      if (event.data.before.exists && previousData.role === userData.role) {
+      const previousData = event.data.before.exists ? event.data.before.data() : {};
+      if (previousData.role === userData.role) {
         console.log(`Role for user ${userId} is unchanged. No action taken.`);
         return;
       }
 
-      // Set the custom claim if the role exists.
       if (userData && userData.role) {
         try {
           await admin.auth().setCustomUserClaims(userId, {role: userData.role});

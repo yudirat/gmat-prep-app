@@ -101,8 +101,16 @@ export const getQuestionsBySection = (section, allQuestions) => {
  * @returns {boolean} True if the question is valid, false otherwise.
  */
 export const validateQuestionData = (question) => {
-  if (!question || typeof question.type !== 'string' || typeof question.content !== 'object') {
-    console.error('Invalid question data structure:', question);
+  if (!question) {
+    console.error('Invalid question data: question is null or undefined');
+    return false;
+  }
+  if (typeof question.type !== 'string') {
+    console.error('Invalid question data: "type" is not a string.', question);
+    return false;
+  }
+  if (typeof question.content !== 'object' || question.content === null) {
+    console.error('Invalid question data: "content" is not an object.', question);
     return false;
   }
   // Add more checks as needed, e.g., for specific properties within content

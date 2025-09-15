@@ -91,10 +91,25 @@ const useData = () => {
                 snapshot.docs.forEach(doc => {
                   const data = doc.data();
                   
+                  let restructuredData = { ...data };
+                  // This is the migration logic for the old data structure.
+                  if (!restructuredData.content && restructuredData.questionText) {
+                    try {
+                      restructuredData.content = {
+                        questionText: JSON.parse(restructuredData.questionText),
+                        options: restructuredData.options.map(opt => JSON.parse(opt)),
+                        correctAnswer: restructuredData.correctAnswer,
+                      };
+                    } catch (e) {
+                      console.error(`Failed to parse legacy question structure for ID: ${doc.id}`, e);
+                      return; // Skip this question
+                    }
+                  }
+
                   // --- Defensive Data Handling ---
                   // Provide default values for potentially missing fields in older documents
                   const processedData = {
-                    ...data,
+                    ...restructuredData,
                     creationDate: data.creationDate?.toDate ? data.creationDate.toDate() : new Date(),
                     lastModified: data.lastModified?.toDate ? data.lastModified.toDate() : new Date(),
                     usageCount: typeof data.usageCount === 'number' ? data.usageCount : 0,
